@@ -27,9 +27,11 @@ private:
 public:
     Renderer(uint16_t w, uint16_t h) : Window(w, h, "PengInt GUI") {
         shader = LoadShader(0, "shaders/drawshader.glsl");
+        LoadComputeShader();
     }
     Renderer(uint16_t w, uint16_t h, const std::string &title) : Window(w, h, title) {
         shader = LoadShader(0, "shaders/drawshader.glsl");
+        LoadComputeShader();
     }
 protected:
     void OnRun() {}
