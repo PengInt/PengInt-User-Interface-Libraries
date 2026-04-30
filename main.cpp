@@ -12,7 +12,8 @@ public:
 };
 
 int main() {
-    ChangeDirectory("C:/Users/gommet/Documents/GitHub/PengInt-User-Interface-Libraries");
+    // Only keep following line for running from school PC
+    //ChangeDirectory("C:/Users/gommet/Documents/GitHub/PengInt-User-Interface-Libraries");
     Renderer renderer = Renderer(800, 800);
     RANDOM_BTN();
     renderer.Run();
