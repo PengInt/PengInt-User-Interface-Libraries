@@ -5,6 +5,7 @@
 #include <vector>
 #include <string>
 
+#define GRAPHICS_API_OPENGL_43
 #include "raylib.h"
 
 
@@ -45,6 +46,7 @@ public:
     }
 protected:
     virtual void OnRun() { }
+    virtual void OnEnd() { }
     virtual void OnUpdate_UI(float dt, float t) { }
     virtual void PreUpdate_UI(float dt, float t) { }
 public:
@@ -64,6 +66,8 @@ public:
             EndDrawing();
             OnUpdate_UI(0, 0);
         }
+        OnEnd();
+        CloseWindow();
     }
 };
 

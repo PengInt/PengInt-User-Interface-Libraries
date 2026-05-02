@@ -1,5 +1,7 @@
 #version 430
 
+layout(location = 0) uniform int count;
+
 struct Vertex {
     float px, py, pz;
     float cx, cy, cz;
@@ -14,5 +16,11 @@ layout(local_size_x = 256) in;
 
 void main() {
     uint idx = gl_GlobalInvocationID.x;
-    // ...
+    if (idx >= count) return;
+
+    // ... math ...
+
+    data[idx].px = rotatedX;
+    data[idx].py = rotatedY;
+    data[idx].pz = rotatedZ;
 }
