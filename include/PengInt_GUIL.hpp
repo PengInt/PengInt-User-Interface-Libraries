@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <array>
+#include <cmath>
 
 #include "PengInt_UIL.hpp"
 
@@ -21,13 +22,27 @@ std::array<float, 3> VectorCrossProduct(const std::array<float, 3>& v1, const st
     };
 }
 
+std::array<float, 4> fromAngleAxis(std::array<float, 4> q) {
+    float angle = q[0], x = q[1], y = q[2], z = q[3];
+    float halfAngle = angle*0.5;
+    float s = std::sin(halfAngle);
+    return {std::cos(halfAngle), x * s, y * s, z * s};
+}
+
 std::array<float, 4> QuaternionMultiplication(const std::array<float, 4>& q1, const std::array<float, 4>& q2) {
     return {
         q1[0]*q2[0] - q1[1]*q2[1] - q1[2]*q2[2] - q1[3]*q2[3],
-        q1[0]*q2[1] + q1[1]*q2[0] - q1[2]*q2[3] + q1[3]*q2[2],
-        q1[0]*q2[2] + q1[1]*q2[3] + q1[2]*q2[0] - q1[3]*q2[1],
-        q1[0]*q2[3] - q1[1]*q2[2] + q1[2]*q2[1] + q1[3]*q2[0]
+        q1[0]*q2[1] + q1[1]*q2[0] + q1[2]*q2[3] - q1[3]*q2[2],
+        q1[0]*q2[2] - q1[1]*q2[3] + q1[2]*q2[0] + q1[3]*q2[1],
+        q1[0]*q2[3] + q1[1]*q2[2] - q1[2]*q2[1] + q1[3]*q2[0]
     };
+}
+
+std::array<float, 4> toAngleAxis(const std::array<float, 4>& q) {
+    float angle = 2*std::acos(q[0]);
+    float s = std::sqrt(1-q[0]*q[0]);
+    if (s < 0.001) return {angle, 1, 0, 0};
+    return {angle, q[1] / s, q[2] / s, q[3] / s};
 }
 
 namespace PengIntShaderStructs {
@@ -52,7 +67,7 @@ namespace PengIntShaderStructs {
         static std::vector<Object*> OBJECTS;
         float X, Y, Z;
         std::vector<float> Verticies;
-        std::vector<int> Triangles; // i1, i2, i3, r, g, b, m (index, material)
+        std::vector<int> Triangles;
     private:
         std::vector<std::array<float, 4>> PLANNED_ROTATIONS;
     public:
@@ -60,7 +75,7 @@ namespace PengIntShaderStructs {
         std::vector<Vertex> GetVertexData(int oi, int vi) {
             std::vector<Vertex> output;
             std::array<float, 4> quaternion = {1, 0, 0, 0};
-            for (int i = 0; i < PLANNED_ROTATIONS.size(); i++) quaternion = QuaternionMultiplication(quaternion, PLANNED_ROTATIONS[i]);
+            for (int i = 0; i < PLANNED_ROTATIONS.size(); i++) quaternion = toAngleAxis(QuaternionMultiplication(fromAngleAxis(quaternion), fromAngleAxis(PLANNED_ROTATIONS[i])));
             for (int i = 0; i < Verticies.size(); i += 3) output.push_back({
                 Verticies[i], Verticies[i+1], Verticies[i+2],
                 X, Y, Z,
