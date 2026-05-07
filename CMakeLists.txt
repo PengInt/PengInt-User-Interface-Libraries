@@ -9,15 +9,22 @@ if (WIN32)
 endif()
 
 include_directories(${CMAKE_SOURCE_DIR}/include)
-link_directories(${CMAKE_SOURCE_DIR}/lib)
+set(OPENGL_VERSION "4.3" CACHE STRING "FORCE OPENGL 4.3" FORCE)
+include(FetchContent)
+FetchContent_Declare(
+    raylib
+    URL https://github.com/raysan5/raylib/archive/refs/heads/master.zip
+)
+FetchContent_MakeAvailable(raylib)
 
 add_executable(PengInt_GraphicsLibraries main.cpp
-        include/PengInt_GUIL.hpp
-        include/PengInt_UIL.hpp)
+    include/PengInt_GUIL.hpp
+    include/PengInt_UIL.hpp
+)
 
 target_link_libraries(PengInt_GraphicsLibraries
-        raylib
-        opengl32
-        gdi32
-        winmm
+    raylib
+    opengl32
+    gdi32
+    winmm
 )

@@ -7,8 +7,6 @@
 
 #include "PengInt_UIL.hpp"
 
-#include "rlgl.h"
-
 
 float VectorDotProduct(const std::array<float, 3>& v1, const std::array<float, 3>& v2) {
     return v1[0]*v2[0] + v1[1]*v2[1] + v1[2]*v2[2];
@@ -54,17 +52,15 @@ namespace PengIntShaderStructs {
         float padding[2];
     };
     struct Triangle {
-        float x1, y1, z1, _pad1;
-        float x2, y2, z2, _pad2;
-        float x3, y3, z3, _pad3;
-        float r, g, b, _pad4;
-        float cx, cy, cz, _pad5;
+        float i1, i2, i3, _pad1;
+        float r, g, b, _pad2;
+        float cx, cy, cz, _pad3;
         float w, x, y, z;
     };
     class Object;
+    std::vector<Object*> OBJECTS;
     class Object {
     public:
-        static std::vector<Object*> OBJECTS;
         float X, Y, Z;
         std::vector<float> Verticies;
         std::vector<int> Triangles;
@@ -72,25 +68,23 @@ namespace PengIntShaderStructs {
         std::vector<std::array<float, 4>> PLANNED_ROTATIONS;
     public:
         Object(float x, float y, float z, std::vector<float>& v, std::vector<int>& t) : X(x), Y(y), Z(z), Verticies(v), Triangles(t) { OBJECTS.push_back(this); }
-        std::vector<Vertex> GetVertexData(int oi, int vi) {
+        std::vector<Vertex> GetVertexData(int oi) {
             std::vector<Vertex> output;
-            std::array<float, 4> quaternion = {1, 0, 0, 0};
+            std::array<float, 4> quaternion = {0, 1, 0, 0};
             for (int i = 0; i < PLANNED_ROTATIONS.size(); i++) quaternion = toAngleAxis(QuaternionMultiplication(fromAngleAxis(quaternion), fromAngleAxis(PLANNED_ROTATIONS[i])));
             for (int i = 0; i < Verticies.size(); i += 3) output.push_back({
                 Verticies[i], Verticies[i+1], Verticies[i+2],
                 X, Y, Z,
                 quaternion[0], quaternion[1], quaternion[2], quaternion[3],
-                oi, vi,
+                oi, i/3,
                 {0, 0}
             });
             return output;
         }
-        std::vector<Triangle> GetTriangleData(float cx, float cy, float cz, float w, float x, float y, float z) {
+        std::vector<Triangle> GetTriangleData(int offset, float cx, float cy, float cz, float w, float x, float y, float z) {
             std::vector<Triangle> output;
             for (int i = 0; i < Triangles.size(); i += 7) output.push_back({
-                Verticies[3*Triangles[i]], Verticies[3*Triangles[i]+1], Verticies[3*Triangles[i]+2], 0,
-                Verticies[3*Triangles[i+1]], Verticies[3*Triangles[i+1]+1], Verticies[3*Triangles[i+1]+2], 0,
-                Verticies[3*Triangles[i+2]], Verticies[3*Triangles[i+2]+1], Verticies[3*Triangles[i+2]+2], 0,
+                (float) Triangles[i] + offset, (float) Triangles[i+1] + offset, (float) Triangles[i+2] + offset, 0,
                 (float) Triangles[i+3], (float) Triangles[i+4], (float) Triangles[i+5], 0,
                 cx, cy, cz, 0,
                 w, x, y, z
@@ -108,6 +102,7 @@ private:
     unsigned int vertexSSBO;
     unsigned int triangleSSBO;
     unsigned int zBufferSSBO;
+    unsigned int cBufferSSBO;
     int totalVertices = 0;
     int totalTriangles = 0;
     void LoadShaders() {
@@ -126,31 +121,25 @@ private:
         vertexSSBO = 0;
         triangleSSBO = 0;
         zBufferSSBO = 0;
+        cBufferSSBO = 0;
     }
     void SyncGPUData(const std::vector<PengIntShaderStructs::Vertex>& verticies, const std::vector<PengIntShaderStructs::Triangle>& triangles) {
-        if (vertexSSBO == 0) {
-            vertexSSBO = rlLoadShaderBuffer(verticies.size() * sizeof(PengIntShaderStructs::Vertex), verticies.data(), RL_DYNAMIC_COPY);
-        } else if (totalVertices < verticies.size()) {
+        if (vertexSSBO == 0) vertexSSBO = rlLoadShaderBuffer(verticies.size() * sizeof(PengIntShaderStructs::Vertex), verticies.data(), RL_DYNAMIC_COPY);
+        else if (totalVertices < verticies.size()) {
             rlUnloadShaderBuffer(vertexSSBO);
             vertexSSBO = rlLoadShaderBuffer(verticies.size() * sizeof(PengIntShaderStructs::Vertex), verticies.data(), RL_DYNAMIC_COPY);
-        } else {
-            rlUpdateShaderBuffer(vertexSSBO, verticies.data(), verticies.size() * sizeof(PengIntShaderStructs::Vertex), 0);
-        }
+        } else rlUpdateShaderBuffer(vertexSSBO, verticies.data(), verticies.size() * sizeof(PengIntShaderStructs::Vertex), 0);
         totalVertices = verticies.size();
 
-        if (triangleSSBO == 0) {
-            triangleSSBO = rlLoadShaderBuffer(triangles.size() * sizeof(PengIntShaderStructs::Triangle), triangles.data(), RL_DYNAMIC_COPY);
-        } else if (totalTriangles < triangles.size()) {
+        if (triangleSSBO == 0) triangleSSBO = rlLoadShaderBuffer(triangles.size() * sizeof(PengIntShaderStructs::Triangle), triangles.data(), RL_DYNAMIC_COPY);
+        else if (totalTriangles < triangles.size()) {
             rlUnloadShaderBuffer(triangleSSBO);
             triangleSSBO = rlLoadShaderBuffer(triangles.size() * sizeof(PengIntShaderStructs::Triangle), triangles.data(), RL_DYNAMIC_COPY);
-        } else {
-            rlUpdateShaderBuffer(triangleSSBO, triangles.data(), triangles.size() * sizeof(PengIntShaderStructs::Triangle), 0);
-        }
+        } else rlUpdateShaderBuffer(triangleSSBO, triangles.data(), triangles.size() * sizeof(PengIntShaderStructs::Triangle), 0);
         totalTriangles = triangles.size();
 
-        if (zBufferSSBO == 0) {
-            zBufferSSBO = rlLoadShaderBuffer(WIDTH*HEIGHT*sizeof(float), NULL, RL_DYNAMIC_COPY);
-        }
+        if (zBufferSSBO == 0) zBufferSSBO = rlLoadShaderBuffer(WIDTH*HEIGHT*sizeof(int), NULL, RL_DYNAMIC_COPY);
+        if (cBufferSSBO == 0) cBufferSSBO = rlLoadShaderBuffer(WIDTH*HEIGHT*sizeof(uint32_t), NULL, RL_DYNAMIC_COPY);
     }
     void GetDataSync() {
         std::vector<PengIntShaderStructs::Vertex> vertices;
@@ -159,14 +148,16 @@ private:
         float cx = 0, cy = 0, cz = -5;
         float cw = 1, cx_rot = 0, cy_rot = 0, cz_rot = 0;
 
-        for (int i = 0; i < PengIntShaderStructs::Object::OBJECTS.size(); i++) {
-            auto* obj = PengIntShaderStructs::Object::OBJECTS[i];
+        int offset = 0;
+        for (int i = 0; i < PengIntShaderStructs::OBJECTS.size(); i++) {
+            auto* obj = PengIntShaderStructs::OBJECTS[i];
 
-            auto v_data = obj->GetVertexData(i, vertices.size());
+            auto v_data = obj->GetVertexData(i);
             vertices.insert(vertices.end(), v_data.begin(), v_data.end());
 
-            auto t_data = obj->GetTriangleData(cx, cy, cz, cw, cx_rot, cy_rot, cz_rot);
+            auto t_data = obj->GetTriangleData(offset, cx, cy, cz, cw, cx_rot, cy_rot, cz_rot);
             triangles.insert(triangles.end(), t_data.begin(), t_data.end());
+            offset += (obj->Verticies.size()/3);
         }
 
         SyncGPUData(vertices, triangles);
@@ -176,8 +167,8 @@ private:
         rlReadShaderBuffer(vertexSSBO, results.data(), totalVertices * sizeof(PengIntShaderStructs::Vertex), 0);
 
         for (auto& v : results) {
-            if (v.oi < PengIntShaderStructs::Object::OBJECTS.size()) {
-                auto* obj = PengIntShaderStructs::Object::OBJECTS[v.oi];
+            if (v.oi < PengIntShaderStructs::OBJECTS.size()) {
+                auto* obj = PengIntShaderStructs::OBJECTS[v.oi];
                 int baseIdx = v.vi*3;
                 if (baseIdx + 2 < obj->Verticies.size()) {
                     obj->Verticies[baseIdx] = v.px;
@@ -190,9 +181,11 @@ private:
 public:
     Renderer(uint16_t w, uint16_t h) : Window(w, h, "PengInt GUI") {
         LoadShaders();
+        CLEAR_BACKHROUND = false;
     }
     Renderer(uint16_t w, uint16_t h, const std::string &title) : Window(w, h, title) {
         LoadShaders();
+        CLEAR_BACKHROUND = false;
     }
 protected:
     void OnRun() {}
@@ -205,24 +198,32 @@ protected:
     void PreUpdate_UI(float dt, float t) {
         GetDataSync();
         rlEnableShader(RotateProgram);
-        int vCountLoc = rlGetLocationUniform(RotateProgram, "count");
-        rlSetUniform(vCountLoc, &totalVertices, SHADER_UNIFORM_INT, 1);
-        rlBindShaderBuffer(vertexSSBO, 0);
-        rlComputeShaderDispatch((totalVertices/256) + 1, 1, 1);
+            int vCountLoc = rlGetLocationUniform(RotateProgram, "count");
+            rlSetUniform(vCountLoc, &totalVertices, SHADER_UNIFORM_INT, 1);
+            rlBindShaderBuffer(vertexSSBO, 0);
+            rlComputeShaderDispatch((totalVertices/256) + 1, 1, 1);
         rlDisableShader();
+        std::vector<int> clearZ(WIDTH * HEIGHT, 2147483647);
+        rlUpdateShaderBuffer(zBufferSSBO, clearZ.data(), clearZ.size() * sizeof(int), 0);
+        std::vector<uint32_t> clearC(WIDTH * HEIGHT, 0);
+        rlUpdateShaderBuffer(cBufferSSBO, clearC.data(), clearC.size() * sizeof(uint32_t), 0);
         rlEnableShader(BufferProgram);
-        int tCountLoc = rlGetLocationUniform(BufferProgram, "count");
-        rlSetUniform(tCountLoc, &totalTriangles, SHADER_UNIFORM_INT, 1);
-        rlBindShaderBuffer(triangleSSBO, 0);
-        rlBindShaderBuffer(zBufferSSBO, 1);
-        rlBindShaderBuffer(vertexSSBO, 2);
-        rlComputeShaderDispatch((totalTriangles/256) + 1, 1, 1);
+            rlSetUniform(rlGetLocationUniform(BufferProgram, "count"), &totalTriangles, SHADER_UNIFORM_INT, 1);
+            rlSetUniform(rlGetLocationUniform(BufferProgram, "screenWidth"), &WIDTH, SHADER_UNIFORM_INT, 1);
+            rlSetUniform(rlGetLocationUniform(BufferProgram, "screenHeight"), &HEIGHT, SHADER_UNIFORM_INT, 1);
+            rlBindShaderBuffer(triangleSSBO, 0);
+            rlBindShaderBuffer(zBufferSSBO, 1);
+            rlBindShaderBuffer(vertexSSBO, 2);
+            rlBindShaderBuffer(cBufferSSBO, 3);
+            rlComputeShaderDispatch((totalTriangles/256) + 1, 1, 1);
         rlDisableShader();
         SetDataSync();
 
         BeginShaderMode(DrawShader);
-            rlBindShaderBuffer(zBufferSSBO, 0);
-            DrawRectangle(0, 0, WIDTH, HEIGHT, {255, 255, 255, 255});
+            int screenWidthLoc = rlGetLocationUniform(DrawShader.id, "screenWidth");
+            rlSetUniform(screenWidthLoc, &WIDTH, SHADER_UNIFORM_INT, 1);
+            rlBindShaderBuffer(cBufferSSBO, 0);
+            DrawRectangle(0, 0, WIDTH, HEIGHT, WHITE);
         EndShaderMode();
         OnUpdate_GUI(dt, t);
     }

@@ -7,6 +7,7 @@
 
 #define GRAPHICS_API_OPENGL_43
 #include "raylib.h"
+#include "rlgl.h"
 
 
 class UIElem;
@@ -38,11 +39,14 @@ public:
 class Window {
 public:
     uint16_t WIDTH, HEIGHT;
+    bool CLEAR_BACKHROUND;
     Window(uint16_t w, uint16_t h) : WIDTH(w), HEIGHT(h) {
         InitWindow(WIDTH, HEIGHT, "PengInt UI");
+        CLEAR_BACKHROUND = true;
     }
     Window(uint16_t w, uint16_t h, const std::string &title) : WIDTH(w), HEIGHT(h) {
         InitWindow(WIDTH, HEIGHT, title.c_str());
+        CLEAR_BACKHROUND = true;
     }
 protected:
     virtual void OnRun() { }
@@ -59,7 +63,7 @@ public:
                 for (BTN* btn : BTNs) if (c_pos.x > btn->POS.x && c_pos.y > btn->POS.y && c_pos.x < btn->POS.x+btn->SIZE.x && c_pos.y < btn->POS.y+btn->SIZE.y) { btn->OnClick(); break; }
             }
             BeginDrawing();
-                ClearBackground(WHITE);
+                if (CLEAR_BACKHROUND) ClearBackground(WHITE);
                 for (UIElem* e : UIElems) {
                     DrawRectangle(e->POS.x, e->POS.y, e->SIZE.x, e->SIZE.y, e->COL);
                 }
