@@ -6,8 +6,11 @@
 #include <string>
 
 #define GRAPHICS_API_OPENGL_43
+#include <chrono>
+
 #include "raylib.h"
 #include "rlgl.h"
+#include "external/glad.h"
 
 
 class UIElem;
@@ -57,18 +60,19 @@ public:
     void Run() {
         OnRun();
         while (!WindowShouldClose()) {
-            PreUpdate_UI(0, 0);
+            float dt = GetFrameTime();
             if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
                 Vector2 c_pos = GetMousePosition();
                 for (BTN* btn : BTNs) if (c_pos.x > btn->POS.x && c_pos.y > btn->POS.y && c_pos.x < btn->POS.x+btn->SIZE.x && c_pos.y < btn->POS.y+btn->SIZE.y) { btn->OnClick(); break; }
             }
             BeginDrawing();
+                PreUpdate_UI(dt, 0);
                 if (CLEAR_BACKHROUND) ClearBackground(WHITE);
                 for (UIElem* e : UIElems) {
                     DrawRectangle(e->POS.x, e->POS.y, e->SIZE.x, e->SIZE.y, e->COL);
                 }
             EndDrawing();
-            OnUpdate_UI(0, 0);
+            OnUpdate_UI(dt, 0);
         }
         OnEnd();
         CloseWindow();

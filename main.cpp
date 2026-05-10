@@ -1,24 +1,33 @@
-#include <iostream>
+#include <numbers>
 
 #include "PengInt_GUIL.hpp"
 
 
-/*class RANDOM_BTN : public BTN {
+class Game : public Renderer {
+    PengIntShaderStructs::Object* obj;
 public:
-    RANDOM_BTN() : BTN({10, 20}, {60, 30}, {102, 153, 204, 255}) { }
-    void OnClick() {
-        std::cout << "click" << std::flush;
+    Game() : Renderer(800, 800) {
+        std::vector<float> vertices = {1, 1, 1, 1, 1, -1, 1, -1, 1, 1, -1, -1, -1, 1, 1, -1, 1, -1, -1, -1, 1, -1, -1, -1};
+        std::vector<int> triangles = {
+            0, 1, 2, 255, 0, 0, 0,
+            1, 2, 3, 0, 255, 0, 0,
+            2, 3, 4, 0, 0, 255, 0,
+            3, 4, 5, 255, 255, 0, 0,
+            4, 5, 6, 0, 255, 255, 0,
+            5, 6, 7, 255, 0, 255, 0,
+            6, 7, 0, 127, 0, 255, 0,
+            7, 0, 1, 255, 0, 127, 0
+        };
+        obj = new PengIntShaderStructs::Object(0, 0, 0, vertices, triangles);
+        Run();
     }
-};*/
+protected:
+    void OnUpdate_GUI(float dt, float t) {
+        obj->PLANNED_ROTATIONS.push_back({(float) std::numbers::pi*dt, 1, 0, 0});
+    }
+};
 
 int main() {
-    // Only keep following line for running from school PC
-    //ChangeDirectory("C:/Users/gommet/Documents/GitHub/PengInt-User-Interface-Libraries");
-    Renderer renderer = Renderer(800, 800);
-    //RANDOM_BTN();
-    std::vector<float> vertices = {1, 1, 1, 1, 1, -1, 1, -1, 1, 1, -1, -1, -1, 1, 1, -1, 1, -1, -1, -1, 1, -1, -1, -1};
-    std::vector<int> triangles = {0, 1, 2, 255, 0, 0, 0, 1, 2, 3, 0, 255, 0, 0, 2, 3, 4, 0, 0, 255, 0, 3, 4, 5, 255, 255, 0, 0, 4, 5, 0, 0, 255, 255, 0, 5, 0, 1, 255, 0, 255, 0};
-    PengIntShaderStructs::Object(0, 0, 0, vertices, triangles);
-    renderer.Run();
+    Game game = Game();
     return 0;
 }

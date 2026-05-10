@@ -10,7 +10,7 @@ void main() {
     int x = int(gl_FragCoord.x);
     int y = int(gl_FragCoord.y);
 
-    uint pixelIdx = uint(y * screenWidth + x);
+    uint pixelIdx = uint(y * 800 + x);
     uint packed = colourValues[pixelIdx];
 
     float r = float(packed & 0xFFu) / 255.0;

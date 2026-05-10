@@ -3,31 +3,26 @@
 layout(local_size_x = 256) in;
 
 struct Vertex {
-    float px, py, pz;
-    float cx, cy, cz;
+    float px, py, pz, _pad1;
+    float cx, cy, cz, _pad2;
     float w, x, y, z;
-    int oi, vi;
-    float padding[2];
+    int oi, vi, _pad3[2];
 };
 
 struct Triangle {
-    float i1, i2, i3, _pad1;
+    int i1, i2, i3, _pad1;
     float r, g, b, _pad2;
     float cx, cy, cz, _pad3;
     float w, x, y, z;
 };
 
-struct Pixel {
-    float z, r, g, b;
-};
-
 layout(location = 0) uniform int count;
 layout(location = 1) uniform int screenWidth;
 layout(location = 2) uniform int screenHeight;
-layout(std430, binding=0) buffer TriangleInput { Triangle data[]; };
-layout(std430, binding=1) buffer DepthBuffer { int zValues[]; } outZ;
-layout(std430, binding=2) buffer RotatedVertexInput { Vertex vData[]; };
-layout(std430, binding=3) buffer ColourBuffer { uint colourValues[]; } outColour;
+layout(std430, binding = 0) buffer TriangleInput { Triangle data[]; };
+layout(std430, binding = 1) buffer DepthBuffer { int zValues[]; } outZ;
+layout(std430, binding = 2) buffer RotatedVertexInput { Vertex vData[]; };
+layout(std430, binding = 3) buffer ColourBuffer { uint colourValues[]; } outColour;
 
 float EdgeFunc(vec2 a, vec2 b, vec2 c) {
     return (c.x-a.x)*(b.y-a.y)-(c.y-a.y)*(b.x-a.x);
@@ -38,9 +33,9 @@ void main() {
     if (idx >= count) return;
 
     Triangle tri = data[idx];
-    vec3 p1 = vec3(vData[int(tri.i1)].px, vData[int(tri.i1)].py, vData[int(tri.i1)].pz);
-    vec3 p2 = vec3(vData[int(tri.i2)].px, vData[int(tri.i2)].py, vData[int(tri.i2)].pz);
-    vec3 p3 = vec3(vData[int(tri.i3)].px, vData[int(tri.i3)].py, vData[int(tri.i3)].pz);
+    vec3 p1 = vec3(vData[tri.i1].px, vData[tri.i1].py, vData[tri.i1].pz);
+    vec3 p2 = vec3(vData[tri.i2].px, vData[tri.i2].py, vData[tri.i2].pz);
+    vec3 p3 = vec3(vData[tri.i3].px, vData[tri.i3].py, vData[tri.i3].pz);
 
     vec3 camera = vec3(tri.cx, tri.cy, tri.cz);
 
@@ -48,9 +43,9 @@ void main() {
     p2 -= camera;
     p3 -= camera;
 
-    if (p1.z < 0.1 || p2.z < 0.1 || p3.z < 0.1) return;
+    if (p1.z < 0.01 || p2.z < 0.01 || p3.z < 0.01) return;
 
-    float hw = screenWidth*0.5;
+    float hw = float(screenWidth)*0.5;
     vec2 s1 = vec2((p1.x/p1.z)*hw+hw, (p1.y/p1.z)*hw+hw);
     vec2 s2 = vec2((p2.x/p2.z)*hw+hw, (p2.y/p2.z)*hw+hw);
     vec2 s3 = vec2((p3.x/p3.z)*hw+hw, (p3.y/p3.z)*hw+hw);

@@ -3,11 +3,10 @@
 layout(location = 0) uniform int count;
 
 struct Vertex {
-    float px, py, pz;
-    float cx, cy, cz;
+    float px, py, pz, _pad1;
+    float cx, cy, cz, _pad2;
     float w, x, y, z;
-    int oi, vi;
-    float padding[2];
+    int oi, vi, _pad3[2];
 };
 
 vec4 hamilton(vec4 a, vec4 b) {
@@ -17,7 +16,7 @@ vec4 hamilton(vec4 a, vec4 b) {
     );
 }
 
-layout(std430, binding=0) buffer VertexBufer { Vertex data[]; };
+layout(std430, binding = 0) buffer VertexBufer { Vertex data[]; };
 
 layout(local_size_x = 256) in;
 
@@ -29,6 +28,7 @@ void main() {
     vec3 P = vec3(dataidx.px, dataidx.py, dataidx.pz);
     vec3 R = vec3(dataidx.cx, dataidx.cy, dataidx.cz);
     vec4 Q = vec4(dataidx.x, dataidx.y, dataidx.z, dataidx.w);
+    if (Q.w == 0) return;
 
     vec4 QD = vec4(P-R, 0);
 
