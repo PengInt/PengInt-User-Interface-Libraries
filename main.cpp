@@ -9,21 +9,43 @@ public:
     Game() : Renderer(800, 800) {
         std::vector<float> vertices = {1, 1, 1, 1, 1, -1, 1, -1, 1, 1, -1, -1, -1, 1, 1, -1, 1, -1, -1, -1, 1, -1, -1, -1};
         std::vector<int> triangles = {
-            0, 1, 2, 255, 0, 0, 0,
-            1, 2, 3, 0, 255, 0, 0,
-            2, 3, 4, 0, 0, 255, 0,
-            3, 4, 5, 255, 255, 0, 0,
-            4, 5, 6, 0, 255, 255, 0,
-            5, 6, 7, 255, 0, 255, 0,
-            6, 7, 0, 127, 0, 255, 0,
-            7, 0, 1, 255, 0, 127, 0
+            0, 2, 4, 255, 0, 0, 0,
+            4, 2, 6, 255, 0, 0, 0,
+            1, 5, 3, 0, 255, 0, 0,
+            3, 5, 7, 0, 255, 0, 0,
+            0, 1, 2, 0, 0, 255, 0,
+            2, 1, 3, 0, 0, 255, 0,
+            4, 6, 5, 255, 255, 0, 0,
+            5, 6, 7, 255, 255, 0, 0,
+            0, 4, 1, 0, 255, 255, 0,
+            1, 4, 5, 0, 255, 255, 0,
+            2, 3, 6, 255, 0, 255, 0,
+            6, 3, 7, 255, 0, 255, 0
         };
         obj = new PengIntShaderStructs::Object(0, 0, 0, vertices, triangles);
         Run();
     }
 protected:
     void OnUpdate_GUI(float dt, float t) {
-        obj->PLANNED_ROTATIONS.push_back({(float) std::numbers::pi*dt, 1, 0, 0});
+        obj->PLANNED_ROTATIONS.push_back({(float) std::numbers::pi*0.5f*dt, 1, 0.5, 0});
+        if (IsKeyDown(KEY_W)) {
+            CameraPosition[2] += 2*dt;
+        }
+        if (IsKeyDown(KEY_A)) {
+            CameraPosition[0] -= 2*dt;
+        }
+        if (IsKeyDown(KEY_S)) {
+            CameraPosition[2] -= 2*dt;
+        }
+        if (IsKeyDown(KEY_D)) {
+            CameraPosition[0] += 2*dt;
+        }
+        if (IsKeyDown(KEY_Q)) {
+            CameraPosition[1] -= 2*dt;
+        }
+        if (IsKeyDown(KEY_E)) {
+            CameraPosition[1] += 2*dt;
+        }
     }
 };
 

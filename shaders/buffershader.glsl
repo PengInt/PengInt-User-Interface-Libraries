@@ -1,6 +1,6 @@
 #version 430
 
-layout(local_size_x = 256) in;
+layout(local_size_x = 256, local_size_y = 2, local_size_z = 2) in;
 
 struct Vertex {
     float px, py, pz, _pad1;
@@ -30,6 +30,8 @@ float EdgeFunc(vec2 a, vec2 b, vec2 c) {
 
 void main() {
     uint idx = gl_GlobalInvocationID.x;
+    uint idy = gl_GlobalInvocationID.y;
+    uint idz = gl_GlobalInvocationID.z;
     if (idx >= count) return;
 
     Triangle tri = data[idx];
@@ -58,13 +60,23 @@ void main() {
     int minY = max(0, int(topleft.y));
     int maxY = min(screenHeight - 1, int(bottomright.y));
 
-    float avgZ = (p1.z+p2.z+p3.z)/3.0;
-    int z_int = int(avgZ*1000000);
-    for (int y = minY; y <= maxY; y++) {
-        for (int x = minX; x <= maxX; x++) {
+    for (int y = minY+int(idz); y <= maxY; y+=2) {
+        for (int x = minX+int(idy); x <= maxX; x+=2) {
             vec2 p = vec2(float(x), float(y));
 
-            if ((EdgeFunc(s2, s3, p) <= 0 && EdgeFunc(s3, s1, p) <= 0 && EdgeFunc(s1, s2, p) <= 0) || (EdgeFunc(s2, s3, p) >= 0 && EdgeFunc(s3, s1, p) >= 0 && EdgeFunc(s1, s2, p) >= 0)) {
+            float w1 = EdgeFunc(s2, s3, p);
+            float w2 = EdgeFunc(s3, s1, p);
+            float w3 = EdgeFunc(s1, s2, p);
+
+            float totalArea = EdgeFunc(s1, s2, s3);
+
+            float bar1 = w1/totalArea;
+            float bar2 = w2/totalArea;
+            float bar3 = w3/totalArea;
+
+            float pixelZ = (bar1*p1.z)+(bar2*p2.z)+(bar3*p3.z);
+            int z_int = int(pixelZ*1000000);
+            if ((w1 <= 0 && w2 <= 0 && w3 <= 0) || (w1 >= 0 && w2 >= 0 && w3 >= 0)) {
                 uint pixelIdx = uint(y*screenWidth+x);
                 int oz = atomicMin(outZ.zValues[pixelIdx], z_int);
                 if (z_int < oz) {

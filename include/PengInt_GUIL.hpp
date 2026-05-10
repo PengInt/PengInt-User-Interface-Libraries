@@ -93,6 +93,8 @@ namespace PengIntShaderStructs {
 }
 
 class Renderer : public Window {
+protected:
+    std::array<float, 3> CameraPosition;
 private:
     Shader DrawShader;
     unsigned int RotateProgram;
@@ -143,7 +145,7 @@ private:
         std::vector<PengIntShaderStructs::Vertex> vertices;
         std::vector<PengIntShaderStructs::Triangle> triangles;
 
-        float cx = 0, cy = 0, cz = -5;
+        float cx = CameraPosition[0], cy = CameraPosition[1], cz = CameraPosition[2];
         float cw = 1, cx_rot = 0, cy_rot = 0, cz_rot = 0;
 
         int offset = 0;
@@ -180,10 +182,12 @@ public:
     Renderer(uint16_t w, uint16_t h) : Window(w, h, "PengInt GUI") {
         LoadShaders();
         CLEAR_BACKHROUND = false;
+        CameraPosition = {0, 0, -5};
     }
     Renderer(uint16_t w, uint16_t h, const std::string &title) : Window(w, h, title) {
         LoadShaders();
         CLEAR_BACKHROUND = false;
+        CameraPosition = {0, 0, -5};
     }
 protected:
     void OnRun() {}
@@ -215,7 +219,7 @@ protected:
             rlBindShaderBuffer(zBufferSSBO, 1);
             rlBindShaderBuffer(vertexSSBO, 2);
             rlBindShaderBuffer(cBufferSSBO, 3);
-            rlComputeShaderDispatch((totalTriangles/256) + 1, 1, 1);
+            rlComputeShaderDispatch((totalTriangles/256) + 1, 2, 2);
         rlDisableShader();
         SetDataSync();
 
