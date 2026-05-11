@@ -23,6 +23,7 @@ public:
             6, 3, 7, 255, 0, 255, 0
         };
         obj = new PengIntShaderStructs::Object(0, 0, 0, vertices, triangles);
+        //LoadObjectFromJSON("model_data.json");
         Run();
     }
 protected:

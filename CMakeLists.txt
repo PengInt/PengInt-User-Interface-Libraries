@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 4.0)
+cmake_policy(SET CMP0169 OLD)
 project(PengInt_GraphicsLibraries)
 
 set(CMAKE_CXX_STANDARD 26)
@@ -16,11 +17,22 @@ FetchContent_Declare(
     URL https://github.com/raysan5/raylib/archive/refs/heads/master.zip
 )
 FetchContent_MakeAvailable(raylib)
+include(FetchContent)
+FetchContent_Declare(
+    rapidjson
+    URL https://github.com/Tencent/rapidjson/archive/refs/heads/master.zip
+)
+#FetchContent_MakeAvailable(rapidjson)
 
 add_executable(PengInt_GraphicsLibraries main.cpp
     include/PengInt_GUIL.hpp
     include/PengInt_UIL.hpp
 )
+
+if (NOT rapidjson_POPULATED)
+    FetchContent_Populate(rapidjson)
+    target_include_directories(PengInt_GraphicsLibraries PRIVATE "${rapidjson_SOURCE_DIR}/include")
+endif()
 
 target_link_libraries(PengInt_GraphicsLibraries
     raylib
