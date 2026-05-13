@@ -11,11 +11,11 @@ void main() {
     int y = int(gl_FragCoord.y);
 
     uint pixelIdx = uint(y * 800 + x);
-    uint packed = colourValues[pixelIdx];
+    uint packedVal = colourValues[pixelIdx];
 
-    float r = float(packed & 0xFFu) / 255.0;
-    float g = float((packed >> 8) & 0xFFu) / 255.0;
-    float b = float((packed >> 16) & 0xFFu) / 255.0;
+    float r = float(packedVal & 0xFFu) / 255.0;
+    float g = float((packedVal >> 8) & 0xFFu) / 255.0;
+    float b = float((packedVal >> 16) & 0xFFu) / 255.0;
 
     finalColour = vec4(r, g, b, 1.0);
 }
