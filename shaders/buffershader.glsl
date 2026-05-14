@@ -55,9 +55,9 @@ void main() {
     if (idx >= count) return;
 
     Triangle tri = data[idx];
-    vec3 p1 = vec3(vData[tri.i1].px, vData[tri.i1].py, vData[tri.i1].pz);
-    vec3 p2 = vec3(vData[tri.i2].px, vData[tri.i2].py, vData[tri.i2].pz);
-    vec3 p3 = vec3(vData[tri.i3].px, vData[tri.i3].py, vData[tri.i3].pz);
+    vec3 p1 = vec3(vData[tri.i1].px+vData[tri.i1].cx, vData[tri.i1].py+vData[tri.i1].cy, vData[tri.i1].pz+vData[tri.i1].cz);
+    vec3 p2 = vec3(vData[tri.i2].px+vData[tri.i2].cx, vData[tri.i2].py+vData[tri.i2].cy, vData[tri.i2].pz+vData[tri.i2].cz);
+    vec3 p3 = vec3(vData[tri.i3].px+vData[tri.i3].cx, vData[tri.i3].py+vData[tri.i3].cy, vData[tri.i3].pz+vData[tri.i3].cz);
 
     vec3 camera = vec3(tri.cx, tri.cy, tri.cz);
 

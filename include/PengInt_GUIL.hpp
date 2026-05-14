@@ -7,8 +7,8 @@
 #include <cmath>
 #include <string>
 
-//#include <rapidjson/document.h>
-//#include <rapidjson/filereadstream.h>
+#include <rapidjson/document.h>
+#include <rapidjson/filereadstream.h>
 
 #include "PengInt_UIL.hpp"
 
@@ -255,48 +255,38 @@ protected:
     }
 };
 
-/*PengIntShaderStructs::Object* LoadObjectFromJSON(const char* fpath) {
+PengIntShaderStructs::Object* LoadObjectFromJSON(const char* fpath) {
     FILE* fp = fopen(fpath, "rb");
-    if (!fp) {
-        printf("FATAL ERROR: Could not open file at %s\n", fpath);
-        return nullptr;
-    }
-    char readBuffer[65536];
-    rapidjson::FileReadStream is(fp, readBuffer, sizeof(readBuffer));
+    if (!fp) printf("no file?");
+    char readbuffer[65536];
+    rapidjson::FileReadStream is(fp, readbuffer, sizeof(readbuffer));
     rapidjson::Document doc;
     doc.ParseStream(is);
-    if (doc.HasParseError()) {
-        printf("JSON Parse Error: %d\n", doc.GetParseError());
-        return nullptr;
-    }
     fclose(fp);
-    if (!doc.HasMember("v") || !doc.HasMember("t")) {
-        printf("JSON Error: Missing 'v' or 't' arrays\n");
-        return nullptr;
+    if (doc.HasParseError()) printf("no lack of parse error?");
+    assert(doc.IsObject());
+    std::vector<float> temp_v;
+    if (doc.HasMember("v") && doc["v"].IsArray()) {
+        const auto& arr = doc["v"].GetArray();
+        temp_v.reserve(arr.Size());
+        for (auto& v : arr) {
+            if (v.IsFloat()) {
+                temp_v.push_back(v.GetFloat());
+            }
+        }
     }
-    const rapidjson::Value& vArr = doc["v"];
-    if (!vArr.IsArray()) {
-        printf("Data Error: 'v' is not an array!\n");
-        return nullptr;
+    std::vector<int> temp_t;
+    if (doc.HasMember("t") && doc["t"].IsArray()) {
+        const auto& arr = doc["t"].GetArray();
+        temp_t.reserve(arr.Size());
+        for (auto& t : arr) {
+            if (t.IsInt()) {
+                temp_t.push_back(t.GetInt());
+            }
+        }
     }
-    std::vector<float> vertices;
-    vertices.reserve(vArr.Size());
-    for (auto& v : vArr.GetArray()) {
-        vertices.push_back(v.GetFloat());
-    }
-    const rapidjson::Value& tArr = doc["t"];
-    if (!tArr.IsArray()) {
-        printf("Data Error: 't' is not an array!\n");
-        return nullptr;
-    }
-    std::vector<int> triangles;
-    triangles.reserve(tArr.Size());
-    for (auto& t : tArr.GetArray()) {
-        triangles.push_back(t.GetInt());
-    }
-    printf("done\n");
-    return new PengIntShaderStructs::Object(0, 0, 0, vertices, triangles);
-}*/
+    return new PengIntShaderStructs::Object(0, 0, 0, temp_v, temp_t);
+}
 
 
 #endif //PENGINT_GUIL_HPP

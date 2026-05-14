@@ -26,18 +26,17 @@ void main() {
 
     Vertex dataidx = data[idx];
     vec3 P = vec3(dataidx.px, dataidx.py, dataidx.pz);
-    vec3 R = vec3(dataidx.cx, dataidx.cy, dataidx.cz);
     vec4 Q = vec4(dataidx.x, dataidx.y, dataidx.z, dataidx.w);
     if (Q.w == 0) return;
 
-    vec4 QD = vec4(P-R, 0);
+    vec4 QD = vec4(P, 0);
 
     float m = length(Q.xyz);
     vec3 Uv = vec3(Q.x, Q.y, Q.z)/m;
     vec4 Uq = vec4(sin(Q.w/2)*Uv, cos(Q.w/2));
     vec4 Uqc = vec4(-Uq.xyz, Uq.w);
 
-    vec4 N = hamilton(hamilton(Uq, QD), Uqc) + vec4(R, 0);
+    vec4 N = hamilton(hamilton(Uq, QD), Uqc);
 
     data[idx].px = N.x;
     data[idx].py = N.y;
