@@ -23,6 +23,7 @@ void main() {
     float r = float(packedVal & 0xFFu) / 255.0;
     float g = float((packedVal >> 8) & 0xFFu) / 255.0;
     float b = float((packedVal >> 16) & 0xFFu) / 255.0;
+    float a = float((packedVal >> 24) & 0xFFu) / 255.0;
 
-    finalColour = vec4(r, g, b, 1.0);
+    finalColour = vec4(r, g, b, a);
 }

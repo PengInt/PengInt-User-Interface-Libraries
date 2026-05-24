@@ -9,10 +9,6 @@ class Game : public Renderer {
 public:
     Game() : Renderer(800, 800) {
         obj = LoadObjectFromJSON("model_data.json");
-        std::cout << obj->Triangles.size()/7;
-        std::vector<float> ground_vertices = {-10, 0, -10, -10, 0, 10, 10, 0, -10, 10, 0, 10};
-        std::vector<int> ground_triangles = {0, 1, 2, 127, 255, 0, 0, 1, 2, 3, 127, 255, 0, 0};
-        new PengIntShaderStructs::Object(0, 0, 0, ground_vertices, ground_triangles);
         Run();
     }
 protected:

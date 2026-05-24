@@ -10,8 +10,8 @@ struct Vertex {
 };
 
 struct Triangle {
-    int i1, i2, i3, _pad1;
-    float r, g, b, _pad2;
+    int i1, i2, i3, glow;
+    float r, g, b, a;
     float cx, cy, cz, _pad3;
     float w, x, y, z;
 };
@@ -71,13 +71,13 @@ void main() {
 
     if (p1.z < 0.01 || p2.z < 0.01 || p3.z < 0.01) return;
 
-    float hw = float(screenWidth)*0.5;
-    float hh = float(screenHeight)*0.5;
+    float half_width = float(screenWidth)*0.5;
+    float half_height = float(screenHeight)*0.5;
     float sf = 0;
-    if (hw > hh) sf = hh; else sf = hw;
-    vec2 s1 = vec2((p1.x/p1.z)*sf+hw, (p1.y/p1.z)*sf+hh);
-    vec2 s2 = vec2((p2.x/p2.z)*sf+hw, (p2.y/p2.z)*sf+hh);
-    vec2 s3 = vec2((p3.x/p3.z)*sf+hw, (p3.y/p3.z)*sf+hh);
+    if (half_width > half_height) sf = half_height; else sf = half_width;
+    vec2 s1 = vec2((p1.x/p1.z)*sf+half_width, (p1.y/p1.z)*sf+half_height);
+    vec2 s2 = vec2((p2.x/p2.z)*sf+half_width, (p2.y/p2.z)*sf+half_height);
+    vec2 s3 = vec2((p3.x/p3.z)*sf+half_width, (p3.y/p3.z)*sf+half_height);
 
     vec2 topleft = min(s1, min(s2, s3));
     vec2 bottomright = max(s1, max(s2, s3));
@@ -107,7 +107,7 @@ void main() {
                 uint pixelIdx = uint(y*screenWidth+x);
                 int oz = atomicMin(outZ.zValues[pixelIdx], z_int);
                 if (z_int < oz) {
-                    uint colour = (uint(tri.b) << 16) | (uint(tri.g) << 8) | uint(tri.r);
+                    uint colour = (uint(tri.a) << 24) | (uint(tri.b) << 16) | (uint(tri.g) << 8) | uint(tri.r);
                     outColour.colourValues[pixelIdx] = colour;
                 }
             }

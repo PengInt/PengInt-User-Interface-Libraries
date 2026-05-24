@@ -6,6 +6,7 @@
 #include <array>
 #include <cmath>
 #include <string>
+#include <map>
 
 #include <rapidjson/document.h>
 #include <rapidjson/filereadstream.h>
@@ -60,20 +61,25 @@ namespace PengIntShaderStructs {
         int oi, vi, _pad3[2];
     };
     struct Triangle {
-        int i1, i2, i3, _pad1;
-        float r, g, b, _pad2;
+        int i1, i2, i3, glow;
+        float r, g, b, a;
         float cx, cy, cz, _pad3;
         float w, x, y, z;
     };
     class Object;
+    std::map<std::string, std::vector<Object*>> OBJECTS_SORTED;
     std::vector<Object*> OBJECTS;
     class Object {
     public:
         float X, Y, Z;
         std::vector<float> Vertices;
-        std::vector<int> Triangles;
+        std::vector<int> Triangles; // i1, i2, i3, glow, r, g, b, a, m
         std::vector<std::array<float, 4>> PLANNED_ROTATIONS;
-        Object(float x, float y, float z, std::vector<float>& v, std::vector<int>& t) : X(x), Y(y), Z(z), Vertices(v), Triangles(t) { OBJECTS.push_back(this); }
+        Object(float x, float y, float z, std::vector<float>& v, std::vector<int>& t) : X(x), Y(y), Z(z), Vertices(v), Triangles(t) {
+            std::string coord = std::to_string((int) floor(x/10)*10) + "," + std::to_string((int) floor(y/10)*10) + "," + std::to_string((int) floor(z/10)*10);
+            OBJECTS_SORTED[coord].push_back(this);
+            OBJECTS.push_back(this);
+        }
         std::vector<Vertex> GetVertexData(int oi) {
             std::vector<Vertex> output;
             std::array<float, 4> quaternion = {0, 1, 0, 0};
@@ -89,9 +95,9 @@ namespace PengIntShaderStructs {
         }
         std::vector<Triangle> GetTriangleData(int offset, float cx, float cy, float cz, float w, float x, float y, float z) {
             std::vector<Triangle> output;
-            for (int i = 0; i < Triangles.size(); i += 7) output.push_back({
-                Triangles[i] + offset, Triangles[i+1] + offset, Triangles[i+2] + offset, 0,
-                (float) Triangles[i+3], (float) Triangles[i+4], (float) Triangles[i+5], 0,
+            for (int i = 0; i < Triangles.size(); i += 9) output.push_back({
+                Triangles[i] + offset, Triangles[i+1] + offset, Triangles[i+2] + offset, Triangles[i+3],
+                (float) Triangles[i+4], (float) Triangles[i+5], (float) Triangles[i+6], (float) Triangles[i+7],
                 cx, cy, cz, 0,
                 w, x, y, z
             });
@@ -214,6 +220,7 @@ protected:
     }
     virtual void OnUpdate_GUI(float dt, float t) { }
     void PreUpdate_UI(float dt, float t) {
+        ClearBackground({0, 0, 0, 255});
         if (IsWindowResized()) {
             rlUnloadShaderBuffer(zBufferSSBO);
             rlUnloadShaderBuffer(cBufferSSBO);
@@ -257,13 +264,13 @@ protected:
 
 PengIntShaderStructs::Object* LoadObjectFromJSON(const char* fpath) {
     FILE* fp = fopen(fpath, "rb");
-    if (!fp) printf("no file?");
+    if (!fp) printf("no file");
     char readbuffer[65536];
     rapidjson::FileReadStream is(fp, readbuffer, sizeof(readbuffer));
     rapidjson::Document doc;
     doc.ParseStream(is);
     fclose(fp);
-    if (doc.HasParseError()) printf("no lack of parse error?");
+    if (doc.HasParseError()) printf("parse error");
     assert(doc.IsObject());
     std::vector<float> temp_v;
     if (doc.HasMember("v") && doc["v"].IsArray()) {
