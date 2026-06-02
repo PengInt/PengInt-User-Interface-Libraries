@@ -40,6 +40,7 @@ public:
 };
 
 class Window {
+protected:
 public:
     uint16_t WIDTH, HEIGHT;
     bool CLEAR_BACKHROUND;

@@ -1,13 +1,13 @@
 #include <numbers>
 #include <iostream>
 
-#include "PengInt_GUIL.hpp"
+#include "PengInt_FillipGameEngine.hpp"
 
 
-class Game : public Renderer {
+class Game : public FillipGameEngineWindow {
     PengIntShaderStructs::Object* obj;
 public:
-    Game() : Renderer(800, 800) {
+    Game() : FillipGameEngineWindow() {
         obj = LoadObjectFromJSON("model_data.json");
         Run();
     }

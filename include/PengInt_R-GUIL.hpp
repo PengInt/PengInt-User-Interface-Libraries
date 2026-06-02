@@ -1,5 +1,5 @@
-#ifndef PENGINT_GUIL_HPP
-#define PENGINT_GUIL_HPP
+#ifndef PENGINT_R_GUIL_HPP
+#define PENGINT_R_GUIL_HPP
 
 #include <cstdint>
 #include <cstdio>
@@ -129,7 +129,7 @@ private:
         RotateProgram = rlLoadShaderProgramCompute(rotShader);
         UnloadFileText(rotCode);
 
-        char* bufCode = LoadFileText("shaders/buffershader.glsl");
+        char* bufCode = LoadFileText("shaders/raytraceshader.glsl");
         unsigned int bufShader = rlLoadShader(bufCode, RL_COMPUTE_SHADER);
         RaytraceProgram = rlLoadShaderProgramCompute(bufShader);
         UnloadFileText(bufCode);
@@ -248,7 +248,7 @@ protected:
             rlBindShaderBuffer(zBufferSSBO, 1);
             rlBindShaderBuffer(vertexSSBO, 2);
             rlBindShaderBuffer(cBufferSSBO, 3);
-            rlComputeShaderDispatch((totalTriangles/64) + 1, 4, 4);
+            rlComputeShaderDispatch((sw+15)/16, (sh+15)/16, 1);
         rlDisableShader();
         SetDataSync();
 
@@ -296,4 +296,4 @@ PengIntShaderStructs::Object* LoadObjectFromJSON(const char* fpath) {
 }
 
 
-#endif //PENGINT_GUIL_HPP
+#endif //PENGINT_R_GUIL_HPP

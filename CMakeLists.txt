@@ -22,11 +22,12 @@ FetchContent_Declare(
     rapidjson
     URL https://github.com/Tencent/rapidjson/archive/refs/heads/master.zip
 )
-#FetchContent_MakeAvailable(rapidjson)
 
 add_executable(PengInt_GraphicsLibraries main.cpp
+    include/PengInt_R-GUIL.hpp
     include/PengInt_GUIL.hpp
     include/PengInt_UIL.hpp
+        include/PengInt_FillipGameEngine.hpp
 )
 
 if (NOT rapidjson_POPULATED)
