@@ -59,6 +59,18 @@ void main() {
     vec3 p2 = vec3(vData[tri.i2].px+vData[tri.i2].cx, vData[tri.i2].py+vData[tri.i2].cy, vData[tri.i2].pz+vData[tri.i2].cz);
     vec3 p3 = vec3(vData[tri.i3].px+vData[tri.i3].cx, vData[tri.i3].py+vData[tri.i3].cy, vData[tri.i3].pz+vData[tri.i3].cz);
 
+    vec3 v12 = p2-p1;
+    vec3 v13 = p3-p1;
+
+    vec3 normal = cross(v12, v13);
+    normal = normal/length(normal);
+
+    if (length(normal) != 1) {
+        for (int i = 0; i < 1600; i++) {
+            outColour.colourValues[i] = (uint(255) << 24) | (uint(255) << 16) | (uint(0) << 8) | uint(0);
+        }
+    }
+
     vec3 camera = vec3(tri.cx, tri.cy, tri.cz);
 
     p1 -= camera;
@@ -87,6 +99,10 @@ void main() {
     int minY = max(0, int(topleft.y));
     int maxY = min(screenHeight - 1, int(bottomright.y));
 
+    uint r = uint((tri.r*normal.y+tri.r)/2.0);
+    uint g = uint((tri.g*normal.y+tri.g)/2.0);
+    uint b = uint((tri.b*normal.y+tri.b)/2.0);
+
     for (int y = minY+int(idz); y <= maxY; y+=4) {
         for (int x = minX+int(idy); x <= maxX; x+=4) {
             vec2 p = vec2(float(x), float(y));
@@ -103,11 +119,11 @@ void main() {
 
             float pixelZ = (bar1*p1.z)+(bar2*p2.z)+(bar3*p3.z);
             int z_int = int(pixelZ*1000000);
-            if ((w1 <= 0 && w2 <= 0 && w3 <= 0) || (w1 >= 0 && w2 >= 0 && w3 >= 0)) {
+            if (w1 >= 0 && w2 >= 0 && w3 >= 0) {
                 uint pixelIdx = uint(y*screenWidth+x);
                 int oz = atomicMin(outZ.zValues[pixelIdx], z_int);
                 if (z_int < oz) {
-                    uint colour = (uint(tri.a) << 24) | (uint(tri.b) << 16) | (uint(tri.g) << 8) | uint(tri.r);
+                    uint colour = (uint(tri.a) << 24) | (b << 16) | (g << 8) | r;
                     outColour.colourValues[pixelIdx] = colour;
                 }
             }
