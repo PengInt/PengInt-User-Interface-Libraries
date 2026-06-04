@@ -63,7 +63,7 @@ namespace PengIntShaderStructs {
     struct Triangle {
         int i1, i2, i3, glow;
         float r, g, b, a;
-        float cx, cy, cz, _pad3;
+        float cx, cy, cz, material;
         float w, x, y, z;
     };
     class Object;

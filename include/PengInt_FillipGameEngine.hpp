@@ -1,6 +1,9 @@
 #ifndef PENGINT_FILLIP_HPP
 #define PENGINT_FILLIP_HPP
 
+
+#include <chrono>
+
 #include "PengInt_R-GUIL.hpp"
 
 
@@ -29,13 +32,38 @@ public:
 class FillipGameEngineWindow : public Renderer {
 private:
     Texture2D FillipLogo_WT;
+    std::chrono::steady_clock::time_point start_time_chrono;
     void FillipSetup() {
+        start_time_chrono = std::chrono::steady_clock::now();
         FillipLogo_WT = LoadTexture("Jeremiah-Fillip_Logo (White Text).png");
         BeginDrawing();
             ClearBackground(BLACK);
             DrawText("A culmination of the Penguin Interactive Visual Libraries", 25, 750, 25, WHITE);
             DrawTextureEx(FillipLogo_WT, {208, 183}, 0, 6, WHITE);
         EndDrawing();
+    }
+    void OnRun() override {
+        std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
+        float seconds_left = 1 - std::chrono::duration_cast<std::chrono::seconds>(now-start_time_chrono).count();
+        while (!WindowShouldClose()) {
+            seconds_left -= GetFrameTime();
+            if (seconds_left <= 0) break;
+            BeginDrawing();
+                ClearBackground(BLACK);
+                DrawTextureEx(FillipLogo_WT, {208, 183}, 0, 6, WHITE);
+                DrawText("A culmination of the Penguin Interactive Visual Libraries", 25, 750, 25, WHITE);
+            EndDrawing();
+        }
+        seconds_left = 1;
+        while (!WindowShouldClose()) {
+            seconds_left -= GetFrameTime();
+            if (seconds_left <= 0) break;
+            BeginDrawing();
+                ClearBackground(BLACK);
+                DrawTextureEx(FillipLogo_WT, {208, 183}, 0, 6, {255, 255, 255, (unsigned char) (255*seconds_left)});
+                DrawText("A culmination of the Penguin Interactive Visual Libraries", 25, 750, 25, {255, 255, 255, (unsigned char) (255*seconds_left)});
+            EndDrawing();
+        }
     }
 public:
     FillipGameEngineWindow() : Renderer(800, 800, "Fillip Game Engine") {

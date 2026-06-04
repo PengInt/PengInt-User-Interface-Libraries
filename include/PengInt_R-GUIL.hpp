@@ -63,7 +63,7 @@ namespace PengIntShaderStructs {
     struct Triangle {
         int i1, i2, i3, glow;
         float r, g, b, a;
-        float cx, cy, cz, _pad3;
+        float cx, cy, cz, material;
         float w, x, y, z;
     };
     class Object;
@@ -98,8 +98,8 @@ namespace PengIntShaderStructs {
             for (int i = 0; i < Triangles.size(); i += 9) output.push_back({
                 Triangles[i] + offset, Triangles[i+1] + offset, Triangles[i+2] + offset, Triangles[i+3],
                 (float) Triangles[i+4], (float) Triangles[i+5], (float) Triangles[i+6], (float) Triangles[i+7],
-                cx, cy, cz, 0,
-                w, x, y, z
+                cx, cy, cz, (float) Triangles[i+8],
+                -w, x, y, z
             });
             return output;
         }
