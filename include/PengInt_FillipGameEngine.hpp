@@ -65,6 +65,9 @@ private:
             EndDrawing();
         }
     }
+    void OnEnd() override {
+        UnloadTexture(FillipLogo_WT);
+    }
 public:
     FillipGameEngineWindow() : Renderer(800, 800, "Fillip Game Engine") {
         FillipSetup();

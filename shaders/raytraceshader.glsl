@@ -16,11 +16,16 @@ struct Triangle {
     float w, x, y, z;
 };
 
-layout(location = 0) uniform int count;
+struct LightSource {
+    float x, y, z, _pad1;
+    float r, g, b, a;
+};
+
+layout(location = 0) uniform int triangleCount;
 layout(location = 1) uniform int screenWidth;
 layout(location = 2) uniform int screenHeight;
+layout(location = 3) uniform int lightCount;
 layout(std430, binding = 0) buffer TriangleInput { Triangle data[]; };
-layout(std430, binding = 1) buffer DepthBuffer { int zValues[]; } outZ;
 layout(std430, binding = 2) buffer RotatedVertexInput { Vertex vData[]; };
 layout(std430, binding = 3) buffer ColourBuffer { uint colourValues[]; } outColour;
 
@@ -49,13 +54,21 @@ struct RayHit {
 };
 
 bool Hit(vec3 a, vec3 b, vec3 c, vec3 n, vec3 p) {
-    if (dot(cross(b-a, p-a), n) >= 0 && dot(cross(c-b, p-b), n) >= 0 && dot(cross(a-c, p-c), n) >= 0) return true;
+    float A = dot(cross(b-a, p-a), n);
+    float B = dot(cross(c-b, p-b), n);
+    float C = dot(cross(a-c, p-c), n);
+    if ((A >= 0 && B >= 0 && C >= 0) || (A <= 0 && B <= 0 && C <= 0)) return true;
     return false;
 }
 
-vec3 Raycast(vec3 origin, vec3 direction) {
+vec3 f(vec3 origin, vec3 direction, float d) {
+    return vec3(direction.x*d+origin.x, direction.y*d+origin.y, direction.z*d+origin.z);
+}
+
+float LightRaycast(vec3 origin, vec3 direction, LightSource ls, int triSource_i) {
     RayHit closestHit = RayHit(-1, -1, vec3(0, 0, 0));
-    for (int i = 0; i < count; i++) {
+    for (int i = 0; i < triangleCount; i++) {
+        if (i == triSource_i) continue;
         Triangle tri = data[i];
         vec3 a = vec3(vData[tri.i1].px+vData[tri.i1].cx, vData[tri.i1].py+vData[tri.i1].cy, vData[tri.i1].pz+vData[tri.i1].cz);
         vec3 b = vec3(vData[tri.i2].px+vData[tri.i2].cx, vData[tri.i2].py+vData[tri.i2].cy, vData[tri.i2].pz+vData[tri.i2].cz);
@@ -65,12 +78,68 @@ vec3 Raycast(vec3 origin, vec3 direction) {
         float B = normal.y;
         float C = normal.z;
         float D = -A*a.x - B*a.y - C*a.z;
-        float d = (A*origin.x + B*origin.y + C*origin.z - D)/(A*direction.x + B*direction.y + C*direction.z);
-        if (Hit(a, b, c, normal, vec3(direction.x*d-origin.x, direction.y*d-origin.y, direction.z*d-origin.z))) {
-            return vec3(255, 255, 255);
+        float d = -(A*origin.x + B*origin.y + C*origin.z - D)/(A*direction.x + B*direction.y + C*direction.z);
+        vec3 p = f(origin, direction, d);
+        if (Hit(a, b, c, normal, p) && (d < closestHit.d || closestHit.tri_i == -1) && d >= 0) {
+            closestHit = RayHit(i, d, p);
         }
     }
-    return vec3(0, 0, 0);
+    if (closestHit.tri_i == -1 || closestHit.d > length(vec3(ls.x, ls.y, ls.z)-origin)) return length(vec3(ls.x, ls.y, ls.z)-origin);
+    else return -1;
+}
+
+LightSource[1] lights = {LightSource(2, 2, -2, 0, 255, 255, 255, 3)};
+float visibleEffect = 0.025;
+
+vec3 Raycast(vec3 origin, vec3 direction) {
+    RayHit closestHit = RayHit(-1, -1, vec3(0, 0, 0));
+    for (int i = 0; i < triangleCount; i++) {
+        Triangle tri = data[i];
+        vec3 a = vec3(vData[tri.i1].px+vData[tri.i1].cx, vData[tri.i1].py+vData[tri.i1].cy, vData[tri.i1].pz+vData[tri.i1].cz);
+        vec3 b = vec3(vData[tri.i2].px+vData[tri.i2].cx, vData[tri.i2].py+vData[tri.i2].cy, vData[tri.i2].pz+vData[tri.i2].cz);
+        vec3 c = vec3(vData[tri.i3].px+vData[tri.i3].cx, vData[tri.i3].py+vData[tri.i3].cy, vData[tri.i3].pz+vData[tri.i3].cz);
+        vec3 normal = normalize(cross(b-a, c-a));
+        float A = normal.x;
+        float B = normal.y;
+        float C = normal.z;
+        float D = -A*a.x - B*a.y - C*a.z;
+        float d = -(A*origin.x + B*origin.y + C*origin.z - D)/(A*direction.x + B*direction.y + C*direction.z);
+        vec3 p = f(origin, direction, d);
+        if (Hit(a, b, c, normal, p) && (d < closestHit.d || closestHit.tri_i == -1) && d >= 0) {
+            closestHit = RayHit(i, d, p);
+        }
+    }
+    vec3 finalColour = vec3(0, 0, 0);
+    if (closestHit.tri_i != -1) {
+        Triangle firstHit = data[closestHit.tri_i];
+        vec3 colourFromLights = vec3(0, 0, 0);
+        for (int i = 0; i < lightCount; i++) {
+            vec3 dir = normalize(vec3(lights[i].x, lights[i].y, lights[i].z)-closestHit.loc);
+            float lightDist = LightRaycast(closestHit.loc, dir, lights[i], closestHit.tri_i);
+            if (lightDist != -1) {
+                vec3 a = vec3(vData[firstHit.i1].px+vData[firstHit.i1].cx, vData[firstHit.i1].py+vData[firstHit.i1].cy, vData[firstHit.i1].pz+vData[firstHit.i1].cz);
+                vec3 b = vec3(vData[firstHit.i2].px+vData[firstHit.i2].cx, vData[firstHit.i2].py+vData[firstHit.i2].cy, vData[firstHit.i2].pz+vData[firstHit.i2].cz);
+                vec3 c = vec3(vData[firstHit.i3].px+vData[firstHit.i3].cx, vData[firstHit.i3].py+vData[firstHit.i3].cy, vData[firstHit.i3].pz+vData[firstHit.i3].cz);
+                vec3 normal = normalize(cross(b-a, c-a));
+                float dotProduct = dot(dir, normal);
+                float angleCos = max(dotProduct, -dotProduct);
+                colourFromLights += vec3(lights[i].r, lights[i].g, lights[i].b)*lights[i].a*angleCos/lightDist;
+            }
+        }
+        finalColour = vec3(firstHit.r, firstHit.g, firstHit.b) * (colourFromLights/255);
+    }
+    for (int i = 0; i < lightCount; i++) {
+        LightSource l = lights[i];
+        vec3 dlp = vec3(l.x, l.y, l.z) - origin;
+        if (LightRaycast(origin, direction, l, -1) != -1) {
+            finalColour += vec3(l.r*l.a*visibleEffect, l.g*l.a*visibleEffect, l.b*l.a*visibleEffect)/length(dlp-direction*max(0, dot(dlp, direction)));
+        }
+    }
+    if (finalColour.r > 255) finalColour.r = 255;
+    if (finalColour.g > 255) finalColour.g = 255;
+    if (finalColour.b > 255) finalColour.b = 255;
+    finalColour = vec3(uint(finalColour.r), uint(finalColour.g), uint(finalColour.b));
+    return finalColour;
 }
 
 void main() {

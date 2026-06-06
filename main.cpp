@@ -13,7 +13,7 @@ public:
     }
 protected:
     void OnUpdate_GUI(float dt, float t) {
-        obj->PLANNED_ROTATIONS.push_back({(float) std::numbers::pi*0.5f*dt, 1, 0, 0});
+        obj->PLANNED_ROTATIONS.push_back({(float) std::numbers::pi*0.5f*dt, 1, 1, 1});
         float mvtmult = 1;
         if (IsKeyDown(KEY_LEFT_SHIFT)) mvtmult = 2;
         if (IsKeyDown(KEY_W)) {

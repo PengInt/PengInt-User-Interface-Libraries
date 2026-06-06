@@ -241,9 +241,11 @@ protected:
         rlUpdateShaderBuffer(cBufferSSBO, clearC.data(), clearC.size() * sizeof(uint32_t), 0);
         glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
         rlEnableShader(RaytraceProgram);
-            rlSetUniform(rlGetLocationUniform(RaytraceProgram, "count"), &totalTriangles, SHADER_UNIFORM_INT, 1);
+            rlSetUniform(rlGetLocationUniform(RaytraceProgram, "triangleCount"), &totalTriangles, SHADER_UNIFORM_INT, 1);
             rlSetUniform(rlGetLocationUniform(RaytraceProgram, "screenWidth"), &sw, SHADER_UNIFORM_INT, 1);
             rlSetUniform(rlGetLocationUniform(RaytraceProgram, "screenHeight"), &sh, SHADER_UNIFORM_INT, 1);
+            int lightCountTemp = 1;
+            rlSetUniform(rlGetLocationUniform(RaytraceProgram, "lightCount"), &lightCountTemp, SHADER_UNIFORM_INT, 1);
             rlBindShaderBuffer(triangleSSBO, 0);
             rlBindShaderBuffer(zBufferSSBO, 1);
             rlBindShaderBuffer(vertexSSBO, 2);
