@@ -62,6 +62,27 @@ std::array<float, 4> CombineQuaternions(const std::array<float, 4>& q1, const st
     return toAngleAxis(QuaternionMultiplication(fromAngleAxis(q1), fromAngleAxis(q2)));
 }
 
+std::array<float, 4> hamilton(std::array<float, 4> a, std::array<float, 4> b) {
+    std::array<float, 3> cross = VectorCrossProduct({a[1], a[2], a[3]}, {b[1], b[2], b[3]});
+    return {
+        a[0] * b[0] - VectorDotProduct({a[1], a[2], a[3]}, {b[1], b[2], b[3]}),
+        a[0]*b[1]+a[1]*b[0]+cross[0],
+        a[0]*b[2]+a[2]*b[0]+cross[1],
+        a[0]*b[3]+a[3]*b[0]+cross[2]
+    };
+}
+
+std::array<float, 3> Rotate(const std::array<float, 3>& v, const std::array<float, 4>& q) {
+    if (q[0] == 0) return v;
+    std::array<float, 4> qp = {0, v[0], v[1], v[2]};
+    std::array<float, 3> uv = NormaliseV({q[1], q[2], q[3]});
+    float sinw = sin(q[0]/2);
+    std::array<float, 4> uq = {(float) cos(q[0]/2), sinw*uv[0], sinw*uv[1], sinw*uv[2]};
+    std::array<float, 4> uqc = {uq[0], -uq[1], -uq[2], -uq[3]};
+    std::array<float, 4> n = hamilton(hamilton(uq, qp), uqc);
+    return {n[1], n[2], n[3]};
+}
+
 namespace PengIntShaderStructs {
     struct Vertex {
         float px, py, pz, _pad1;
@@ -76,10 +97,12 @@ namespace PengIntShaderStructs {
         float x, y, z, _pad1;
         int r, g, b, a;
     };
+    std::vector<LightSource*> LIGHTSOURCES;
     struct Material {
         float reflectivity, transparency, density, glow;
         int r, g, b, a;
     };
+    std::vector<Material*> MATERIALS;
     class Object;
     std::map<std::string, std::vector<Object*>> OBJECTS_SORTED;
     std::vector<Object*> OBJECTS;
@@ -117,6 +140,17 @@ namespace PengIntShaderStructs {
     };
 }
 
+std::vector<PengIntShaderStructs::Material> DeRefMat(std::vector<PengIntShaderStructs::Material*> mat_ptr_vec) {
+    std::vector<PengIntShaderStructs::Material> flat;
+    for (auto ptr : mat_ptr_vec) flat.push_back(*ptr);
+    return flat;
+}
+std::vector<PengIntShaderStructs::LightSource> DeRefLS(std::vector<PengIntShaderStructs::LightSource*> ls_ptr_vec) {
+    std::vector<PengIntShaderStructs::LightSource> flat;
+    for (auto ptr : ls_ptr_vec) flat.push_back(*ptr);
+    return flat;
+}
+
 class Renderer : public Window {
 protected:
     std::array<float, 3> CameraPosition;
@@ -129,8 +163,12 @@ private:
     unsigned int vertexSSBO;
     unsigned int triangleSSBO;
     unsigned int cBufferSSBO;
+    unsigned int materialSSBO;
+    unsigned int lightSourceSSBO;
     int totalVertices = 0;
     int totalTriangles = 0;
+    int totalMaterials = 0;
+    int totalLightSources = 0;
     void LoadShaders() {
         DrawShader = LoadShader(0, "shaders/drawshader.glsl");
 
@@ -147,6 +185,8 @@ private:
         vertexSSBO = 0;
         triangleSSBO = 0;
         cBufferSSBO = 0;
+        materialSSBO = 0;
+        lightSourceSSBO = 0;
 
         CameraPosition = {0, 0, 0};
         CameraPitch = 0;
@@ -167,7 +207,22 @@ private:
             triangleSSBO = rlLoadShaderBuffer(triangles.size() * sizeof(PengIntShaderStructs::Triangle), triangles.data(), RL_DYNAMIC_COPY);
         } else rlUpdateShaderBuffer(triangleSSBO, triangles.data(), triangles.size() * sizeof(PengIntShaderStructs::Triangle), 0);
         totalTriangles = triangles.size();
+
         if (cBufferSSBO == 0) cBufferSSBO = rlLoadShaderBuffer(WIDTH*HEIGHT*sizeof(uint32_t), NULL, RL_DYNAMIC_COPY);
+
+        if (materialSSBO == 0) materialSSBO = rlLoadShaderBuffer(PengIntShaderStructs::MATERIALS.size() * sizeof(PengIntShaderStructs::Material), DeRefMat(PengIntShaderStructs::MATERIALS).data(), RL_DYNAMIC_COPY);
+        else if (totalMaterials < PengIntShaderStructs::MATERIALS.size()) {
+            rlUnloadShaderBuffer(materialSSBO);
+            materialSSBO = rlLoadShaderBuffer(PengIntShaderStructs::MATERIALS.size() * sizeof(PengIntShaderStructs::Material), DeRefMat(PengIntShaderStructs::MATERIALS).data(), RL_DYNAMIC_COPY);
+        } else rlUpdateShaderBuffer(materialSSBO, DeRefMat(PengIntShaderStructs::MATERIALS).data(), PengIntShaderStructs::MATERIALS.size() * sizeof(PengIntShaderStructs::Material), 0);
+        totalMaterials = PengIntShaderStructs::MATERIALS.size();
+
+        if (lightSourceSSBO == 0) lightSourceSSBO = rlLoadShaderBuffer(PengIntShaderStructs::LIGHTSOURCES.size() * sizeof(PengIntShaderStructs::Material), DeRefLS(PengIntShaderStructs::LIGHTSOURCES).data(), RL_DYNAMIC_COPY);
+        else if (totalLightSources < PengIntShaderStructs::LIGHTSOURCES.size()) {
+            rlUnloadShaderBuffer(lightSourceSSBO);
+            lightSourceSSBO = rlLoadShaderBuffer(PengIntShaderStructs::LIGHTSOURCES.size() * sizeof(PengIntShaderStructs::LightSource), DeRefLS(PengIntShaderStructs::LIGHTSOURCES).data(), RL_DYNAMIC_COPY);
+        } else rlUpdateShaderBuffer(lightSourceSSBO, DeRefLS(PengIntShaderStructs::LIGHTSOURCES).data(), PengIntShaderStructs::LIGHTSOURCES.size() * sizeof(PengIntShaderStructs::LightSource), 0);
+        totalLightSources = PengIntShaderStructs::LIGHTSOURCES.size();
     }
     void GetDataSync() {
         std::vector<PengIntShaderStructs::Vertex> vertices;
@@ -229,11 +284,12 @@ protected:
             rlSetUniform(rlGetLocationUniform(RaytraceProgram, "camPos"), &CameraPosition, SHADER_UNIFORM_VEC3, 1);
             CameraRotation = CombineQuaternions({CameraPitch, 1, 0, 0}, {CameraYaw, 0, 1, 0});
             rlSetUniform(rlGetLocationUniform(RaytraceProgram, "camRot"), &CameraRotation, SHADER_UNIFORM_VEC4, 1);
-            int lightCountTemp = 1;
-            rlSetUniform(rlGetLocationUniform(RaytraceProgram, "lightCount"), &lightCountTemp, SHADER_UNIFORM_INT, 1);
+            rlSetUniform(rlGetLocationUniform(RaytraceProgram, "lightCount"), &totalLightSources, SHADER_UNIFORM_INT, 1);
             rlBindShaderBuffer(triangleSSBO, 0);
             rlBindShaderBuffer(vertexSSBO, 2);
             rlBindShaderBuffer(cBufferSSBO, 3);
+            rlBindShaderBuffer(materialSSBO, 4);
+            rlBindShaderBuffer(lightSourceSSBO, 5);
             rlComputeShaderDispatch((sw+15)/16, (sh+15)/16, 1);
         rlDisableShader();
         glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
@@ -278,6 +334,60 @@ PengIntShaderStructs::Object* LoadObjectFromJSON(const char* fpath) {
         }
     }
     return new PengIntShaderStructs::Object(0, 0, 0, temp_v, temp_t);
+}
+PengIntShaderStructs::Material LoadMaterialFromJSON_np(const char* fpath) {
+    FILE* fp = fopen(fpath, "rb");
+    if (!fp) printf("no file");
+    char readbuffer[65536];
+    rapidjson::FileReadStream is(fp, readbuffer, sizeof(readbuffer));
+    rapidjson::Document doc;
+    doc.ParseStream(is);
+    fclose(fp);
+    if (doc.HasParseError()) printf("parse error");
+    assert(doc.IsObject());
+    std::vector<float> temp_d;
+    if (doc.HasMember("d") && doc["d"].IsArray()) {
+        const auto& arr = doc["d"].GetArray();
+        temp_d.reserve(arr.Size());
+        for (auto& v : arr) {
+            if (v.IsFloat()) {
+                temp_d.push_back(v.GetFloat());
+            }
+        }
+    }
+    return {temp_d[0], temp_d[1], temp_d[2], temp_d[3], (int) temp_d[4], (int) temp_d[5], (int) temp_d[6], (int) temp_d[7]};
+}
+PengIntShaderStructs::Material* LoadMaterialFromJSON(const char* fpath) {
+    PengIntShaderStructs::Material* mat = new PengIntShaderStructs::Material(LoadMaterialFromJSON_np(fpath));
+    PengIntShaderStructs::MATERIALS.push_back(mat);
+    return mat;
+}
+PengIntShaderStructs::LightSource LoadLightSourceFromJSON_np(const char* fpath) {
+    FILE* fp = fopen(fpath, "rb");
+    if (!fp) printf("no file");
+    char readbuffer[65536];
+    rapidjson::FileReadStream is(fp, readbuffer, sizeof(readbuffer));
+    rapidjson::Document doc;
+    doc.ParseStream(is);
+    fclose(fp);
+    if (doc.HasParseError()) printf("parse error");
+    assert(doc.IsObject());
+    std::vector<float> temp_d;
+    if (doc.HasMember("d") && doc["d"].IsArray()) {
+        const auto& arr = doc["d"].GetArray();
+        temp_d.reserve(arr.Size());
+        for (auto& v : arr) {
+            if (v.IsFloat()) {
+                temp_d.push_back(v.GetFloat());
+            }
+        }
+    }
+    return {temp_d[0], temp_d[1], temp_d[2], 0, (int) temp_d[3], (int) temp_d[4], (int) temp_d[5], (int) temp_d[6]};
+}
+PengIntShaderStructs::LightSource* LoadLightSourceFromJSON(const char* fpath) {
+    PengIntShaderStructs::LightSource* ls = new PengIntShaderStructs::LightSource(LoadLightSourceFromJSON_np(fpath));
+    PengIntShaderStructs::LIGHTSOURCES.push_back(ls);
+    return ls;
 }
 
 

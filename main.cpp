@@ -6,14 +6,23 @@
 
 class Game : public FillipGameEngineWindow {
     PengIntShaderStructs::Object* obj;
+    PengIntShaderStructs::Material* mat;
+    PengIntShaderStructs::LightSource* ls1;
 public:
     Game() : FillipGameEngineWindow() {
         obj = LoadObjectFromJSON("model_data.json");
-        DisableCursor();
+        obj->Y = 0.5;
+        mat = LoadMaterialFromJSON("material.json");
+        ls1 = LoadLightSourceFromJSON("lightsource 1.json");
         Run();
     }
 protected:
+    void Fillip_OnRun() override {
+        DisableCursor();
+    }
     void OnUpdate_GUI(float dt, float t) {
+        std::array<float, 3> rotated_ls1 = Rotate({ls1->x, ls1->y, ls1->z}, {(float) std::numbers::pi*0.5f*dt, 1, 1, 1});
+        ls1->x = rotated_ls1[0]; ls1->y = rotated_ls1[1]; ls1->z = rotated_ls1[2];
         Vector2 MouseM = GetMouseDelta();
         //obj->rotation = CombineQuaternions(obj->rotation, NormaliseQ({(float) std::numbers::pi*0.5f*dt, 1, 1, 1}));
         float mvtmult = 1;

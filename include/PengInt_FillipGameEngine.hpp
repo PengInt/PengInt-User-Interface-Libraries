@@ -35,6 +35,7 @@ private:
             DrawTextureEx(FillipLogo_WT, {208, 183}, 0, 6, WHITE);
         EndDrawing();
     }
+    virtual void Fillip_OnRun() {}
     void OnRun() override {
         std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
         float seconds_left = 1 - std::chrono::duration_cast<std::chrono::seconds>(now-start_time_chrono).count();
@@ -57,6 +58,7 @@ private:
                 DrawText("A culmination of the Penguin Interactive Visual Libraries", 25, 750, 25, {255, 255, 255, (unsigned char) (255*seconds_left)});
             EndDrawing();
         }
+        Fillip_OnRun();
     }
     void OnEnd() override {
         UnloadTexture(FillipLogo_WT);

@@ -32,6 +32,8 @@ layout(location = 5) uniform vec4 camRot;
 layout(std430, binding = 0) buffer TriangleInput { Triangle data[]; };
 layout(std430, binding = 2) buffer RotatedVertexInput { Vertex vData[]; };
 layout(std430, binding = 3) buffer ColourBuffer { uint colourValues[]; } outColour;
+layout(std430, binding = 4) buffer MaterialInput { Material mdata[]; };
+layout(std430, binding = 5) buffer LightSourceInput { LightSource lsdata[]; };
 
 vec4 hamilton(vec4 a, vec4 b) {
     return vec4(
@@ -45,7 +47,7 @@ vec3 rotate(float w, vec3 v, vec3 P) {
     vec4 QP = vec4(P, 0);
     if (Q.w == 0) return P;
     float m = length(Q.xyz);
-    vec3 Uv = vec3(Q.x, Q.y, Q.z)/m;
+    vec3 Uv = Q.xyz/m;
     vec4 Uq = vec4(sin(Q.w/2)*Uv, cos(Q.w/2));
     vec4 Uqc = vec4(-Uq.xyz, Uq.w);
 
@@ -92,10 +94,7 @@ float LightRaycast(vec3 origin, vec3 direction, LightSource ls, int triSource_i)
     else return -1;
 }
 
-LightSource[1] lights = {LightSource(1.5, 1.5, -1.5, 0, 255, 255, 255, 3)};
 float visibleEffect = 0.025;
-
-Material[1] materials = {Material(0.5, 0, 1, 0, 255, 255, 255, 255)};
 
 struct RaycastResult {
     vec3 colour, light; RayHit hit; vec3 reflection_direction, refraction_direction;
@@ -132,15 +131,15 @@ RaycastResult Raycast(vec3 origin, vec3 direction, int skip) {
         vec3 normal = normalize(cross(b-a, c-a));
         vec3 colourFromLights = vec3(0, 0, 0);
         for (int i = 0; i < lightCount; i++) {
-            vec3 dir = normalize(vec3(lights[i].x, lights[i].y, lights[i].z)-closestHit.loc);
-            float lightDist = LightRaycast(closestHit.loc, dir, lights[i], closestHit.tri_i);
+            vec3 dir = normalize(vec3(lsdata[i].x, lsdata[i].y, lsdata[i].z)-closestHit.loc);
+            float lightDist = LightRaycast(closestHit.loc, dir, lsdata[i], closestHit.tri_i);
             if (lightDist != -1) {
                 float dotProduct = dot(dir, normal);
                 float angleCos = max(dotProduct, -dotProduct);
-                colourFromLights += vec3(lights[i].r, lights[i].g, lights[i].b)*lights[i].a*angleCos/lightDist;
+                colourFromLights += vec3(lsdata[i].r, lsdata[i].g, lsdata[i].b)*lsdata[i].a*angleCos/lightDist;
             }
         }
-        Material material = materials[int(data[closestHit.tri_i].m)];
+        Material material = mdata[int(data[closestHit.tri_i].m)];
         finalColour = vec3(material.r, material.g, material.b) * (colourFromLights/255);
         if (material.reflectivity != 0) {
             willRefl = true;
@@ -153,7 +152,7 @@ RaycastResult Raycast(vec3 origin, vec3 direction, int skip) {
     }
     vec3 lightAddition = vec3(0, 0, 0);
     for (int i = 0; i < lightCount; i++) {
-        LightSource l = lights[i];
+        LightSource l = lsdata[i];
         vec3 dlp = vec3(l.x, l.y, l.z) - origin;
         if (LightRaycast(origin, direction, l, -1) != -1) {
             float ddot = dot(dlp, direction);
@@ -179,8 +178,8 @@ vec3 RaycastHandler(vec3 origin, vec3 direction) {
         RaycastResult RR = Raycast(origin, direction, skip);
         c += RR.colour*currentRefl-vec3(lastMat.r, lastMat.g, lastMat.b)*currentRefl+RR.light;
         if (RR.refl == false) break;
-        lastMat = materials[int(data[RR.hit.tri_i].m)];
-        currentRefl *= materials[int(data[RR.hit.tri_i].m)].reflectivity;
+        lastMat = mdata[int(data[RR.hit.tri_i].m)];
+        currentRefl *= mdata[int(data[RR.hit.tri_i].m)].reflectivity;
         origin = RR.hit.loc;
         direction = RR.reflection_direction;
         skip = RR.hit.tri_i;
