@@ -20,13 +20,6 @@ class MeshObject {
     ObjectTransform ObjTransform;
 public:
     MeshObject(ReferenceObject* refobj) : RefMesh(refobj), ObjTransform(ObjectTransform()) { }
-    ReferenceObject* GetObject() {
-        ReferenceObject* ObjectTransformed = RefMesh;
-        ObjectTransformed->PLANNED_ROTATIONS.push_back(ObjTransform.Rotation);
-        ObjectTransformed->X += ObjTransform.Position[0];
-        ObjectTransformed->Y += ObjTransform.Position[1];
-        ObjectTransformed->Z += ObjTransform.Position[2];
-    }
 };
 
 class FillipGameEngineWindow : public Renderer {

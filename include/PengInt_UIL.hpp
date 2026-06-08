@@ -47,11 +47,13 @@ public:
     Window(uint16_t w, uint16_t h) : WIDTH(w), HEIGHT(h) {
         SetConfigFlags(FLAG_WINDOW_RESIZABLE);
         InitWindow(WIDTH, HEIGHT, "PengInt UI");
+        SetExitKey(0);
         CLEAR_BACKHROUND = true;
     }
     Window(uint16_t w, uint16_t h, const std::string &title) : WIDTH(w), HEIGHT(h) {
         SetConfigFlags(FLAG_WINDOW_RESIZABLE);
         InitWindow(WIDTH, HEIGHT, title.c_str());
+        SetExitKey(0);
         CLEAR_BACKHROUND = true;
     }
 protected:
@@ -62,6 +64,8 @@ protected:
 public:
     void Run() {
         OnRun();
+        WIDTH = GetScreenWidth();
+        HEIGHT = GetScreenHeight();
         while (!WindowShouldClose()) {
             if (IsWindowResized()) {
                 WIDTH = GetScreenWidth();

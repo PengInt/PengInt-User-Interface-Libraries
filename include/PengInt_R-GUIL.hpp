@@ -14,6 +14,15 @@
 #include "PengInt_UIL.hpp"
 
 
+std::array<float, 3> NormaliseV(const std::array<float, 3>& v) {
+    float root = sqrt(v[0]*v[0]+v[1]*v[1]+v[2]*v[2]);
+    return {v[0]/root, v[1]/root, v[2]/root};
+}
+std::array<float, 4> NormaliseQ(const std::array<float, 4>& v) {
+    float root = sqrt(v[1]*v[1]+v[2]*v[2]+v[3]*v[3]);
+    return {v[0], v[1]/root, v[2]/root, v[3]/root};
+}
+
 float VectorDotProduct(const std::array<float, 3>& v1, const std::array<float, 3>& v2) {
     return v1[0]*v2[0] + v1[1]*v2[1] + v1[2]*v2[2];
 }
@@ -61,10 +70,15 @@ namespace PengIntShaderStructs {
         int oi, vi, _pad3[2];
     };
     struct Triangle {
-        int i1, i2, i3, glow;
-        float r, g, b, a;
-        float cx, cy, cz, material;
-        float w, x, y, z;
+        int i1, i2, i3, m;
+    };
+    struct LightSource {
+        float x, y, z, _pad1;
+        int r, g, b, a;
+    };
+    struct Material {
+        float reflectivity, transparency, density, glow;
+        int r, g, b, a;
     };
     class Object;
     std::map<std::string, std::vector<Object*>> OBJECTS_SORTED;
@@ -73,33 +87,30 @@ namespace PengIntShaderStructs {
     public:
         float X, Y, Z;
         std::vector<float> Vertices;
-        std::vector<int> Triangles; // i1, i2, i3, glow, r, g, b, a, m
-        std::vector<std::array<float, 4>> PLANNED_ROTATIONS;
+        std::vector<int> Triangles;
+        std::array<float, 4> rotation;
         Object(float x, float y, float z, std::vector<float>& v, std::vector<int>& t) : X(x), Y(y), Z(z), Vertices(v), Triangles(t) {
             std::string coord = std::to_string((int) floor(x/10)*10) + "," + std::to_string((int) floor(y/10)*10) + "," + std::to_string((int) floor(z/10)*10);
             OBJECTS_SORTED[coord].push_back(this);
             OBJECTS.push_back(this);
+            rotation = {0, 1, 0, 0};
         }
         std::vector<Vertex> GetVertexData(int oi) {
+            rotation[0] = std::remainder(rotation[0], 2*std::numbers::pi);
+            rotation = NormaliseQ(rotation);
             std::vector<Vertex> output;
-            std::array<float, 4> quaternion = {0, 1, 0, 0};
-            for (int i = 0; i < PLANNED_ROTATIONS.size(); i++) quaternion = CombineQuaternions(quaternion, PLANNED_ROTATIONS[i]);
-            PLANNED_ROTATIONS.clear();
             for (int i = 0; i < Vertices.size(); i += 3) output.push_back({
                 Vertices[i], Vertices[i+1], Vertices[i+2], 0,
                 X, Y, Z, 0,
-                quaternion[0], quaternion[1], quaternion[2], quaternion[3],
+                rotation[0], rotation[1], rotation[2], rotation[3],
                 oi, i/3, {0}
             });
             return output;
         }
-        std::vector<Triangle> GetTriangleData(int offset, float cx, float cy, float cz, float w, float x, float y, float z) {
+        std::vector<Triangle> GetTriangleData(int offset) {
             std::vector<Triangle> output;
-            for (int i = 0; i < Triangles.size(); i += 9) output.push_back({
-                Triangles[i] + offset, Triangles[i+1] + offset, Triangles[i+2] + offset, Triangles[i+3],
-                (float) Triangles[i+4], (float) Triangles[i+5], (float) Triangles[i+6], (float) Triangles[i+7],
-                cx, cy, cz, (float) Triangles[i+8],
-                -w, x, y, z
+            for (int i = 0; i < Triangles.size(); i += 4) output.push_back({
+                Triangles[i] + offset, Triangles[i+1] + offset, Triangles[i+2] + offset, Triangles[i+3]
             });
             return output;
         }
@@ -117,7 +128,6 @@ private:
     unsigned int RaytraceProgram;
     unsigned int vertexSSBO;
     unsigned int triangleSSBO;
-    unsigned int zBufferSSBO;
     unsigned int cBufferSSBO;
     int totalVertices = 0;
     int totalTriangles = 0;
@@ -136,7 +146,6 @@ private:
 
         vertexSSBO = 0;
         triangleSSBO = 0;
-        zBufferSSBO = 0;
         cBufferSSBO = 0;
 
         CameraPosition = {0, 0, 0};
@@ -158,17 +167,11 @@ private:
             triangleSSBO = rlLoadShaderBuffer(triangles.size() * sizeof(PengIntShaderStructs::Triangle), triangles.data(), RL_DYNAMIC_COPY);
         } else rlUpdateShaderBuffer(triangleSSBO, triangles.data(), triangles.size() * sizeof(PengIntShaderStructs::Triangle), 0);
         totalTriangles = triangles.size();
-
-        if (zBufferSSBO == 0) zBufferSSBO = rlLoadShaderBuffer(WIDTH*HEIGHT*sizeof(int), NULL, RL_DYNAMIC_COPY);
         if (cBufferSSBO == 0) cBufferSSBO = rlLoadShaderBuffer(WIDTH*HEIGHT*sizeof(uint32_t), NULL, RL_DYNAMIC_COPY);
     }
     void GetDataSync() {
         std::vector<PengIntShaderStructs::Vertex> vertices;
         std::vector<PengIntShaderStructs::Triangle> triangles;
-
-        float cx = CameraPosition[0], cy = CameraPosition[1], cz = CameraPosition[2];
-        CameraRotation = CombineQuaternions({CameraPitch, 1, 0, 0}, {CameraYaw, 0, 1, 0});
-        float cw = CameraRotation[0], cx_rot = CameraRotation[1], cy_rot = CameraRotation[2], cz_rot = CameraRotation[3];
 
         int offset = 0;
         for (int i = 0; i < PengIntShaderStructs::OBJECTS.size(); i++) {
@@ -177,28 +180,12 @@ private:
             auto v_data = obj->GetVertexData(i);
             vertices.insert(vertices.end(), v_data.begin(), v_data.end());
 
-            auto t_data = obj->GetTriangleData(offset, cx, cy, cz, cw, cx_rot, cy_rot, cz_rot);
+            auto t_data = obj->GetTriangleData(offset);
             triangles.insert(triangles.end(), t_data.begin(), t_data.end());
             offset += ((int) obj->Vertices.size()/3);
         }
 
         SyncGPUData(vertices, triangles);
-    }
-    void SetDataSync() {
-        std::vector<PengIntShaderStructs::Vertex> results(totalVertices);
-        rlReadShaderBuffer(vertexSSBO, results.data(), totalVertices * sizeof(PengIntShaderStructs::Vertex), 0);
-
-        for (auto& v : results) {
-            if (v.oi < PengIntShaderStructs::OBJECTS.size()) {
-                auto* obj = PengIntShaderStructs::OBJECTS[v.oi];
-                int baseIdx = v.vi*3;
-                if (baseIdx + 2 < obj->Vertices.size()) {
-                    obj->Vertices[baseIdx] = v.px;
-                    obj->Vertices[baseIdx+1] = v.py;
-                    obj->Vertices[baseIdx+2] = v.pz;
-                }
-            }
-        }
     }
 public:
     Renderer(uint16_t w, uint16_t h) : Window(w, h, "PengInt GUI") {
@@ -216,15 +203,12 @@ protected:
     void OnEnd() {
         rlUnloadShaderBuffer(vertexSSBO);
         rlUnloadShaderBuffer(triangleSSBO);
-        rlUnloadShaderBuffer(zBufferSSBO);
     }
     virtual void OnUpdate_GUI(float dt, float t) { }
     void PreUpdate_UI(float dt, float t) {
         ClearBackground({0, 0, 0, 255});
         if (IsWindowResized()) {
-            rlUnloadShaderBuffer(zBufferSSBO);
             rlUnloadShaderBuffer(cBufferSSBO);
-            zBufferSSBO = rlLoadShaderBuffer(WIDTH*HEIGHT*sizeof(int), NULL, RL_DYNAMIC_COPY);
             cBufferSSBO = rlLoadShaderBuffer(WIDTH*HEIGHT*sizeof(uint32_t), NULL, RL_DYNAMIC_COPY);
         }
         int sw = WIDTH; int sh = HEIGHT;
@@ -235,8 +219,6 @@ protected:
             rlBindShaderBuffer(vertexSSBO, 0);
             rlComputeShaderDispatch((totalVertices/256) + 1, 1, 1);
         rlDisableShader();
-        std::vector<int> clearZ(sw * sh, 2147483647);
-        rlUpdateShaderBuffer(zBufferSSBO, clearZ.data(), clearZ.size() * sizeof(int), 0);
         std::vector<uint32_t> clearC(sw * sh, 0);
         rlUpdateShaderBuffer(cBufferSSBO, clearC.data(), clearC.size() * sizeof(uint32_t), 0);
         glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
@@ -244,16 +226,17 @@ protected:
             rlSetUniform(rlGetLocationUniform(RaytraceProgram, "triangleCount"), &totalTriangles, SHADER_UNIFORM_INT, 1);
             rlSetUniform(rlGetLocationUniform(RaytraceProgram, "screenWidth"), &sw, SHADER_UNIFORM_INT, 1);
             rlSetUniform(rlGetLocationUniform(RaytraceProgram, "screenHeight"), &sh, SHADER_UNIFORM_INT, 1);
+            rlSetUniform(rlGetLocationUniform(RaytraceProgram, "camPos"), &CameraPosition, SHADER_UNIFORM_VEC3, 1);
+            CameraRotation = CombineQuaternions({CameraPitch, 1, 0, 0}, {CameraYaw, 0, 1, 0});
+            rlSetUniform(rlGetLocationUniform(RaytraceProgram, "camRot"), &CameraRotation, SHADER_UNIFORM_VEC4, 1);
             int lightCountTemp = 1;
             rlSetUniform(rlGetLocationUniform(RaytraceProgram, "lightCount"), &lightCountTemp, SHADER_UNIFORM_INT, 1);
             rlBindShaderBuffer(triangleSSBO, 0);
-            rlBindShaderBuffer(zBufferSSBO, 1);
             rlBindShaderBuffer(vertexSSBO, 2);
             rlBindShaderBuffer(cBufferSSBO, 3);
             rlComputeShaderDispatch((sw+15)/16, (sh+15)/16, 1);
         rlDisableShader();
-        SetDataSync();
-
+        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
         BeginShaderMode(DrawShader);
             int screenWidthLoc = rlGetLocationUniform(DrawShader.id, "screenWidth");
             SetShaderValue(DrawShader, screenWidthLoc, &sw, SHADER_UNIFORM_INT);
