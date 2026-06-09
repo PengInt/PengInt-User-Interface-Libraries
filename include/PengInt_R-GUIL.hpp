@@ -88,7 +88,6 @@ namespace PengIntShaderStructs {
         float px, py, pz, _pad1;
         float cx, cy, cz, _pad2;
         float w, x, y, z;
-        int oi, vi, _pad3[2];
     };
     struct Triangle {
         int i1, i2, i3, m;
@@ -118,15 +117,14 @@ namespace PengIntShaderStructs {
             OBJECTS.push_back(this);
             rotation = {0, 1, 0, 0};
         }
-        std::vector<Vertex> GetVertexData(int oi) {
+        std::vector<Vertex> GetVertexData() {
             rotation[0] = std::remainder(rotation[0], 2*std::numbers::pi);
             rotation = NormaliseQ(rotation);
             std::vector<Vertex> output;
             for (int i = 0; i < Vertices.size(); i += 3) output.push_back({
                 Vertices[i], Vertices[i+1], Vertices[i+2], 0,
                 X, Y, Z, 0,
-                rotation[0], rotation[1], rotation[2], rotation[3],
-                oi, i/3, {0}
+                rotation[0], rotation[1], rotation[2], rotation[3]
             });
             return output;
         }
@@ -232,7 +230,7 @@ private:
         for (int i = 0; i < PengIntShaderStructs::OBJECTS.size(); i++) {
             auto* obj = PengIntShaderStructs::OBJECTS[i];
 
-            auto v_data = obj->GetVertexData(i);
+            auto v_data = obj->GetVertexData();
             vertices.insert(vertices.end(), v_data.begin(), v_data.end());
 
             auto t_data = obj->GetTriangleData(offset);

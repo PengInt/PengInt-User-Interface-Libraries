@@ -11,7 +11,8 @@ class Game : public FillipGameEngineWindow {
 public:
     Game() : FillipGameEngineWindow() {
         obj = LoadObjectFromJSON("model_data.json");
-        obj->Y = 0.5;
+        obj->Y = 1;
+        std::cout << obj->Y << std::endl;
         mat = LoadMaterialFromJSON("material.json");
         ls1 = LoadLightSourceFromJSON("lightsource 1.json");
         Run();
@@ -21,6 +22,7 @@ protected:
         DisableCursor();
     }
     void OnUpdate_GUI(float dt, float t) {
+        std::cout << obj->Y << std::endl;
         std::array<float, 3> rotated_ls1 = Rotate({ls1->x, ls1->y, ls1->z}, {(float) std::numbers::pi*0.5f*dt, 1, 1, 1});
         ls1->x = rotated_ls1[0]; ls1->y = rotated_ls1[1]; ls1->z = rotated_ls1[2];
         Vector2 MouseM = GetMouseDelta();

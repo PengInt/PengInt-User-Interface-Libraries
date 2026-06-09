@@ -6,7 +6,6 @@ struct Vertex {
     float px, py, pz, _pad1;
     float cx, cy, cz, _pad2;
     float w, x, y, z;
-    int oi, vi, _pad3[2];
 };
 
 vec4 hamilton(vec4 a, vec4 b) {

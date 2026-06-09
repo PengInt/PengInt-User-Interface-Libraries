@@ -6,7 +6,6 @@ struct Vertex {
     float px, py, pz, _pad1;
     float cx, cy, cz, _pad2;
     float w, x, y, z;
-    int oi, vi, _pad3[2];
 };
 
 struct Triangle {
@@ -83,7 +82,7 @@ float LightRaycast(vec3 origin, vec3 direction, LightSource ls, int triSource_i)
         float A = normal.x;
         float B = normal.y;
         float C = normal.z;
-        float D = -A*a.x - B*a.y - C*a.z;
+        float D = A*a.x + B*a.y + C*a.z;
         float d = -(A*origin.x + B*origin.y + C*origin.z - D)/(A*direction.x + B*direction.y + C*direction.z);
         vec3 p = f(origin, direction, d);
         if (Hit(a, b, c, normal, p) && (d < closestHit.d || closestHit.tri_i == -1) && d >= 0) {
@@ -113,7 +112,7 @@ RaycastResult Raycast(vec3 origin, vec3 direction, int skip) {
         float A = normal.x;
         float B = normal.y;
         float C = normal.z;
-        float D = -A*a.x - B*a.y - C*a.z;
+        float D = A*a.x + B*a.y + C*a.z;
         float d = -(A*origin.x + B*origin.y + C*origin.z - D)/(A*direction.x + B*direction.y + C*direction.z);
         vec3 p = f(origin, direction, d);
         if (Hit(a, b, c, normal, p) && (d < closestHit.d || closestHit.tri_i == -1) && d >= 0) {
