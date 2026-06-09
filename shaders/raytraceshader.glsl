@@ -161,9 +161,13 @@ RaycastResult Raycast(vec3 origin, vec3 direction, int skip) {
             lightAddition += vec3(l.r, l.g, l.b)*aveff/length(dlp-direction*max(0, ddot));
         }
     }
-    if (finalColour.r > 255) finalColour.r = 255;
-    if (finalColour.g > 255) finalColour.g = 255;
-    if (finalColour.b > 255) finalColour.b = 255;
+    float highest = max(max(finalColour.r, finalColour.g), finalColour.b);
+    if (highest > 255) {
+        highest /= 255;
+        finalColour.r /= highest;
+        finalColour.g /= highest;
+        finalColour.b /= highest;
+    }
     finalColour = vec3(uint(finalColour.r), uint(finalColour.g), uint(finalColour.b));
     return RaycastResult(finalColour, lightAddition, closestHit, refl, refr, willRefl, willRefr);
 }
@@ -171,21 +175,27 @@ RaycastResult Raycast(vec3 origin, vec3 direction, int skip) {
 vec3 RaycastHandler(vec3 origin, vec3 direction) {
     vec3 c = vec3(0, 0, 0);
     Material lastMat = Material(1, 1, 1, 0, 0, 0, 0, 0);
+    vec3 lc = vec3(0, 0, 0);
     float currentRefl = 1;
     int skip = -1;
     for (int i = 0; i < 16; i++) {
         RaycastResult RR = Raycast(origin, direction, skip);
-        c += RR.colour*currentRefl-vec3(lastMat.r, lastMat.g, lastMat.b)*currentRefl+RR.light;
+        c += RR.colour*currentRefl-lc*currentRefl+RR.light;
         if (RR.refl == false) break;
+        lc = RR.colour*currentRefl;
         lastMat = mdata[int(data[RR.hit.tri_i].m)];
         currentRefl *= mdata[int(data[RR.hit.tri_i].m)].reflectivity;
         origin = RR.hit.loc;
         direction = RR.reflection_direction;
         skip = RR.hit.tri_i;
     }
-    if (c.r > 255) c.r = 255;
-    if (c.g > 255) c.g = 255;
-    if (c.b > 255) c.b = 255;
+    float highest = max(max(c.r, c.g), c.b);
+    if (highest > 255) {
+        highest /= 255;
+        c.r /= highest;
+        c.g /= highest;
+        c.b /= highest;
+    }
     return c;
 }
 

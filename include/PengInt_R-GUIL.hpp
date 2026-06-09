@@ -82,6 +82,10 @@ std::array<float, 3> Rotate(const std::array<float, 3>& v, const std::array<floa
     std::array<float, 4> n = hamilton(hamilton(uq, qp), uqc);
     return {n[1], n[2], n[3]};
 }
+std::array<float, 3> RotateAround(const std::array<float, 3>& v, const std::array<float, 3>& c, const std::array<float, 4>& q) {
+    std::array<float, 3> r = Rotate({v[0]-c[0], v[1]-c[1], v[2]-c[2]}, q);
+    return {r[0]+c[0], r[1]+c[1], r[2]+c[2]};
+}
 
 namespace PengIntShaderStructs {
     struct Vertex {

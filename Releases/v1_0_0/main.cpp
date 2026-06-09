@@ -10,9 +10,9 @@ class Game : public FillipGameEngineWindow {
     PengIntShaderStructs::LightSource* ls1;
 public:
     Game() : FillipGameEngineWindow() {
-        obj = LoadObjectFromJSON("model_data.json");
+        obj = LoadObjectFromJSON("cube.json");
         obj->Y = 0.5;
-        mat = LoadMaterialFromJSON("material.json");
+        mat = LoadMaterialFromJSON("cube material.json");
         ls1 = LoadLightSourceFromJSON("lightsource 1.json");
         Run();
     }

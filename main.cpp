@@ -5,15 +5,23 @@
 
 
 class Game : public FillipGameEngineWindow {
-    PengIntShaderStructs::Object* obj;
-    PengIntShaderStructs::Material* mat;
+    PengIntShaderStructs::Object* cube;
+    PengIntShaderStructs::Object* cubed;
+    PengIntShaderStructs::Object* ground;
+    PengIntShaderStructs::Material* mat_cubes;
+    PengIntShaderStructs::Material* mat_ground;
     PengIntShaderStructs::LightSource* ls1;
 public:
     Game() : FillipGameEngineWindow() {
-        obj = LoadObjectFromJSON("model_data.json");
-        obj->Y = 1;
-        std::cout << obj->Y << std::endl;
-        mat = LoadMaterialFromJSON("material.json");
+        cube = LoadObjectFromJSON("cube.json");
+        cubed = LoadObjectFromJSON("cube.json");
+        cube->Y = 0.5;
+        cubed->Y = 0.5;
+        cubed->X = 1.5;
+        cubed->Y = 1.0;
+        ground = LoadObjectFromJSON("ground.json");
+        mat_cubes = LoadMaterialFromJSON("cube material.json");
+        mat_ground = LoadMaterialFromJSON("ground material.json");
         ls1 = LoadLightSourceFromJSON("lightsource 1.json");
         Run();
     }
@@ -22,9 +30,8 @@ protected:
         DisableCursor();
     }
     void OnUpdate_GUI(float dt, float t) {
-        std::cout << obj->Y << std::endl;
-        std::array<float, 3> rotated_ls1 = Rotate({ls1->x, ls1->y, ls1->z}, {(float) std::numbers::pi*0.5f*dt, 1, 1, 1});
-        ls1->x = rotated_ls1[0]; ls1->y = rotated_ls1[1]; ls1->z = rotated_ls1[2];
+        //std::array<float, 3> rotated_ls1 = RotateAround({ls1->x, ls1->y, ls1->z}, {2, 2, 2}, {(float) std::numbers::pi*0.5f*dt, 0, 1, 0});
+        //ls1->x = rotated_ls1[0]; ls1->y = rotated_ls1[1]; ls1->z = rotated_ls1[2];
         Vector2 MouseM = GetMouseDelta();
         //obj->rotation = CombineQuaternions(obj->rotation, NormaliseQ({(float) std::numbers::pi*0.5f*dt, 1, 1, 1}));
         float mvtmult = 1;

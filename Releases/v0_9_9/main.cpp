@@ -8,7 +8,7 @@ class Game : public FillipGameEngineWindow {
     PengIntShaderStructs::Object* obj;
 public:
     Game() : FillipGameEngineWindow() {
-        obj = LoadObjectFromJSON("model_data.json");
+        obj = LoadObjectFromJSON("cube.json");
         DisableCursor();
         Run();
     }
