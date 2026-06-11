@@ -23,9 +23,10 @@ public:
 };
 
 class FillipGameEngineWindow : public Renderer {
-private:
-    Texture2D FillipLogo_WT;
+    Texture FillipLogo_WT;
     std::chrono::steady_clock::time_point start_time_chrono;
+    UIImage* FillipLogo = nullptr;
+    UIText* TextExample = nullptr;
     void FillipSetup() {
         start_time_chrono = std::chrono::steady_clock::now();
         FillipLogo_WT = LoadTexture("Jeremiah-Fillip_Logo (White Text).png");
@@ -34,8 +35,14 @@ private:
             DrawText("A culmination of the Penguin Interactive Visual Libraries", 25, 750, 25, WHITE);
             DrawTextureEx(FillipLogo_WT, {208, 183}, 0, 6, WHITE);
         EndDrawing();
+        FillipLogo = new UIImage({8, 8, 100, 100}, "Jeremiah.png");
+        TextExample = new UIText({100, 100, 200, 50}, {0, 255, 127, 255}, 20, {255, 0, 127, 255}, "example text here");
     }
     virtual void Fillip_OnRun() {}
+    virtual void Fillip_OnUpdate(float dt, float t) {}
+    void OnUpdate_GUI(float dt, float t) override {
+        Fillip_OnUpdate(dt, t);
+    }
     void OnRun() override {
         std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
         float seconds_left = 1 - std::chrono::duration_cast<std::chrono::seconds>(now-start_time_chrono).count();
@@ -59,9 +66,6 @@ private:
             EndDrawing();
         }
         Fillip_OnRun();
-    }
-    void OnEnd() override {
-        UnloadTexture(FillipLogo_WT);
     }
 public:
     FillipGameEngineWindow() : Renderer(800, 800, "Fillip Game Engine") {

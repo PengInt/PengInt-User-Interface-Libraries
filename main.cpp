@@ -1,7 +1,7 @@
 #include <numbers>
 #include <iostream>
 
-#include "PengInt_FillipGameEngine.hpp"
+#include "PengInt_FGE.hpp"
 
 
 class Game : public FillipGameEngineWindow {
@@ -29,11 +29,8 @@ protected:
     void Fillip_OnRun() override {
         DisableCursor();
     }
-    void OnUpdate_GUI(float dt, float t) {
-        //std::array<float, 3> rotated_ls1 = RotateAround({ls1->x, ls1->y, ls1->z}, {2, 2, 2}, {(float) std::numbers::pi*0.5f*dt, 0, 1, 0});
-        //ls1->x = rotated_ls1[0]; ls1->y = rotated_ls1[1]; ls1->z = rotated_ls1[2];
+    void Fillip_OnUpdate(float dt, float t) override {
         Vector2 MouseM = GetMouseDelta();
-        //obj->rotation = CombineQuaternions(obj->rotation, NormaliseQ({(float) std::numbers::pi*0.5f*dt, 1, 1, 1}));
         float mvtmult = 1;
         if (IsKeyDown(KEY_LEFT_SHIFT)) mvtmult = 2;
         if (IsKeyDown(KEY_W)) {
