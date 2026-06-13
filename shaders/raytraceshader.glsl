@@ -100,6 +100,13 @@ struct RaycastResult {
     bool refl, refr;
 };
 
+float CorrectHue(float h) {
+    h /= 255.0f;
+    float a = 2.51; float b = 0.03; float c = 2.43; float d = 0.59; float e = 0.14;
+    h = (h*(a*h + b))/(h*(c*h + d) + e);
+    return min(1, max(0, h)) * 255;
+}
+
 RaycastResult Raycast(vec3 origin, vec3 direction, int skip) {
     RayHit closestHit = RayHit(-1, -1, vec3(0, 0, 0));
     for (int i = 0; i < triangleCount; i++) {
@@ -189,13 +196,19 @@ vec3 RaycastHandler(vec3 origin, vec3 direction) {
         direction = RR.reflection_direction;
         skip = RR.hit.tri_i;
     }
-    float highest = max(max(c.r, c.g), c.b);
+    /*float highest = max(max(c.r, c.g), c.b);
     if (highest > 255) {
         highest /= 255;
         c.r /= highest;
         c.g /= highest;
         c.b /= highest;
-    }
+    }*/
+    /*c.r = min(255, c.r);
+    c.g = min(255, c.g);
+    c.b = min(255, c.b);*/
+    c.r = CorrectHue(c.r);
+    c.g = CorrectHue(c.g);
+    c.b = CorrectHue(c.b);
     return c;
 }
 
