@@ -28,6 +28,7 @@ add_executable(PengInt_GraphicsLibraries main.cpp
     include/PengInt_GUIL.hpp
     include/PengInt_UIL.hpp
     include/PengInt_FGE.hpp
+    include/FillipSourceCodeHandler.hpp
 )
 
 if (NOT rapidjson_POPULATED)
