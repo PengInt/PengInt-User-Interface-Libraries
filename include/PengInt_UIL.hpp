@@ -4,6 +4,8 @@
 #include <cstdint>
 #include <vector>
 #include <string>
+#include <iostream>
+#include <numbers>
 
 #define GRAPHICS_API_OPENGL_43
 #include <chrono>

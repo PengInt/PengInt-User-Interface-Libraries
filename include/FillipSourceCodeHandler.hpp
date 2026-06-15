@@ -8,4 +8,8 @@ public:
     virtual void OnUpdate(float dt) {}
 };
 
+extern Script* UserGameInstance;
+#define REGISTER_GAME_CLASS(ClassName) \
+    Script* UserGameInstance = new ClassName();
+
 #endif // FILLIP_SOURCE_CODE_HANDLER

@@ -1,5 +1,5 @@
-#ifndef MAIN
-#define MAIN
+#ifndef MAIN_USERPROJECT
+#define MAIN_USERPROJECT
 #include "FillipSourceCodeHandler.hpp"
 
 class GameScript : public Script {
@@ -13,4 +13,6 @@ public:
     }
 };
 
-#endif // MAIN
+REGISTER_GAME_CLASS(GameScript)
+
+#endif // MAIN_USERPROJECT

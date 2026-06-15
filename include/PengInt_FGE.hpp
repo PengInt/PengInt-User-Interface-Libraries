@@ -3,6 +3,8 @@
 
 
 #include <chrono>
+#include <cstdlib>
+#include <filesystem>
 
 #include "PengInt_R-GUIL.hpp"
 
@@ -23,17 +25,69 @@ public:
 };
 
 namespace {
+    std::string CurrentProject_fp = "Project";
     UIElementArray* TopBar_File_OnClickArray;
     UIElementArray* TopBar_Edit_OnClickArray;
     UIElementArray* TopBar_VCS_OnClickArray;
+    std::string CompilerPath = "C:\\Program Files\\JetBrains\\CLion 2025.2.4\\bin\\cmake\\win\\x64\\bin\\cmake.exe";
+    class TopBar_File_CompileProject : public UITextButton {
+    public:
+        TopBar_File_CompileProject() : UITextButton({0, 0, 175, 35}, {255, 255, 255, 255}, 25, {0, 0, 0, 255}, "Compile Project", {255, 0, 0, 255}, true, "Compile Project Button (File Menu, Top Bar)") {}
+        void OnClick() override {
+            std::string cmake_exe = "cmd /c \" \"" + CompilerPath + "\"";
+            std::filesystem::path ProjectAbsPath = std::filesystem::current_path() / CurrentProject_fp;
+            std::string proj_dir = ProjectAbsPath.string();
+            std::string build_dir = (ProjectAbsPath / "Compiled Projects").string();
+            std::cout << "Config (CMake) for: " << proj_dir << std::endl;
+            std::string cfg_cmd = cmake_exe + " -S \"" + proj_dir + "\" -B \"" + build_dir + "\"";
+            int cfg_result = std::system(cfg_cmd.c_str());
+            if (cfg_result != 0) {
+                std::cerr << "Error: Config (CMake) failed!" << std::endl;
+                return;
+            }
+            std::cout << "Config (CMake) successful! \nStarting compilation." << std::endl;
+            std::string build_cmd = cmake_exe + " --build \"" + build_dir + "\" --config Release\"";
+            int build_result = std::system(build_cmd.c_str());
+            if (build_result == 0) std::cout << "Compilation Successful!";
+            else std::cerr << "Error: Compilation failed during build." << std::endl;
+        }
+    };
+    class TopBar_File_CompileProjectAndRun : public UITextButton {
+    public:
+        TopBar_File_CompileProjectAndRun() : UITextButton({0, 0, 175, 35}, {255, 255, 255, 255}, 25, {0, 0, 0, 255}, "Compile Project and Execute", {255, 0, 0, 255}, true, "Compile Project and Execute Button (File Menu, Top Bar)") {}
+        void OnClick() override {
+            std::string cmake_exe = "cmd /c \" \"" + CompilerPath + "\"";
+            std::filesystem::path ProjectAbsPath = std::filesystem::current_path() / CurrentProject_fp;
+            std::string proj_dir = ProjectAbsPath.string();
+            std::string build_dir = (ProjectAbsPath / "Compiled Projects").string();
+            std::cout << "Config (CMake) for: " << proj_dir << std::endl;
+            std::string cfg_cmd = cmake_exe + " -S \"" + proj_dir + "\" -B \"" + build_dir + "\"";
+            int cfg_result = std::system(cfg_cmd.c_str());
+            if (cfg_result != 0) {
+                std::cerr << "Error: Config (CMake) failed!" << std::endl;
+                return;
+            }
+            std::cout << "Config (CMake) successful! \nStarting compilation." << std::endl;
+            std::string build_cmd = cmake_exe + " --build \"" + build_dir + "\" --config Release\"";
+            int build_result = std::system(build_cmd.c_str());
+            if (build_result != 0) {
+                std::cerr << "Error: Compilation failed during build." << std::endl;
+                return;
+            }
+            std::cout << "Compilation Successful!" << std::endl;
+            int run_result = std::system(("cmd /c \"" + (ProjectAbsPath / "Compiled Projects" / "Release" / "UserProject.exe").string() + "\"").c_str());
+            if (run_result == 0) std::cout << "Execution Successful!" << std::endl;
+            else std::cerr << "Error: Execution failed." << std::endl;
+        }
+    };
     class TopBar_File : public UITextButton {
     public:
         TopBar_File() : UITextButton({0, 0, 55, 35}, {255, 255, 255, 255}, 25, {0, 0, 0, 255}, "File", {255, 0, 0, 255}, true, "File Button (Top Bar)") {
             TopBar_File_OnClickArray = new UIElementArray(true, 0, {
                 new UITextButton({0, 35, 135, 35}, {255, 255, 255, 255}, 25, {0, 0, 0, 255}, "New Project", {255, 0, 0, 255}, true, "New Project Button (File Menu, Top Bar)"),
                 new UITextButton({0, 0, 145, 35}, {255, 255, 255, 255}, 25, {0, 0, 0, 255}, "Load Project", {255, 0, 0, 255}, true, "Load Project Button (File Menu, Top Bar)"),
-                new UITextButton({0, 0, 175, 35}, {255, 255, 255, 255}, 25, {0, 0, 0, 255}, "Compile Project", {255, 0, 0, 255}, true, "Compile Project Button (File Menu, Top Bar)"),
-                new UITextButton({0, 0, 175, 35}, {255, 255, 255, 255}, 25, {0, 0, 0, 255}, "Compile Project and Execute", {255, 0, 0, 255}, true, "Compile Project and Execute Button (File Menu, Top Bar)"),
+                new TopBar_File_CompileProject(),
+                new TopBar_File_CompileProjectAndRun(),
                 new UITextButton({0, 0, 95, 35}, {255, 255, 255, 255}, 25, {0, 0, 0, 255}, "Settings", {255, 0, 0, 255}, true, "Settings Button (File Menu, Top Bar)"),
             });
             TopBar_File_OnClickArray->ToggleVisibility();
