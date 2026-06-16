@@ -64,6 +64,17 @@ namespace {
         } catch (const std::filesystem::filesystem_error& e) {
             std::cerr << e.what() << std::endl;
         }
+        src_dir = std::filesystem::current_path() / "Legal Notices";
+        tgt_dir = std::filesystem::current_path() / CurrentProject_fp / "Compiled Projects" / "Release" / "Legal Notices";
+        try {
+            if (std::filesystem::exists(src_dir)) {
+                if (std::filesystem::exists(tgt_dir)) std::filesystem::remove_all(tgt_dir);
+                auto options = std::filesystem::copy_options::recursive;
+                std::filesystem::copy(src_dir, tgt_dir, options);
+            } else std::cerr << "Error: Source directory doesn't exist: " << src_dir.string() << std::endl;
+        } catch (const std::filesystem::filesystem_error& e) {
+            std::cerr << e.what() << std::endl;
+        }
     }
     void Compile() {
         #if defined(_WIN32)
