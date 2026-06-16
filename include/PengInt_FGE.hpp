@@ -30,52 +30,91 @@ namespace {
     UIElementArray* TopBar_Edit_OnClickArray;
     UIElementArray* TopBar_VCS_OnClickArray;
     std::string CompilerPath = "C:\\Program Files\\JetBrains\\CLion 2025.2.4\\bin\\cmake\\win\\x64\\bin\\cmake.exe";
+    void CopyAssets() {
+        std::filesystem::path src_dir = std::filesystem::current_path() / CurrentProject_fp / "Workspace" / "Assets";
+        std::filesystem::path tgt_dir = std::filesystem::current_path() / CurrentProject_fp / "Compiled Projects" / "Release" / "Assets";
+        try {
+            if (std::filesystem::exists(src_dir)) {
+                if (std::filesystem::exists(tgt_dir)) std::filesystem::remove_all(tgt_dir);
+                auto options = std::filesystem::copy_options::recursive;
+                std::filesystem::copy(src_dir, tgt_dir, options);
+            } else std::cerr << "Error: Source directory doesn't exist: " << src_dir.string() << std::endl;
+        } catch (const std::filesystem::filesystem_error& e) {
+            std::cerr << e.what() << std::endl;
+        }
+        src_dir = std::filesystem::current_path() / "shaders";
+        tgt_dir = std::filesystem::current_path() / CurrentProject_fp / "Compiled Projects" / "Release" / "shaders";
+        try {
+            if (std::filesystem::exists(src_dir)) {
+                if (std::filesystem::exists(tgt_dir)) std::filesystem::remove_all(tgt_dir);
+                auto options = std::filesystem::copy_options::recursive;
+                std::filesystem::copy(src_dir, tgt_dir, options);
+            } else std::cerr << "Error: Source directory doesn't exist: " << src_dir.string() << std::endl;
+        } catch (const std::filesystem::filesystem_error& e) {
+            std::cerr << e.what() << std::endl;
+        }
+        src_dir = std::filesystem::current_path() / "Roboto_Mono";
+        tgt_dir = std::filesystem::current_path() / CurrentProject_fp / "Compiled Projects" / "Release" / "Roboto_Mono";
+        try {
+            if (std::filesystem::exists(src_dir)) {
+                if (std::filesystem::exists(tgt_dir)) std::filesystem::remove_all(tgt_dir);
+                auto options = std::filesystem::copy_options::recursive;
+                std::filesystem::copy(src_dir, tgt_dir, options);
+            } else std::cerr << "Error: Source directory doesn't exist: " << src_dir.string() << std::endl;
+        } catch (const std::filesystem::filesystem_error& e) {
+            std::cerr << e.what() << std::endl;
+        }
+    }
+    void Compile() {
+        #if defined(_WIN32)
+            std::string cmake_exe = "cmd /c \"\"" + CompilerPath + "\"";
+        #elif defined(__linux__)
+            std::string cmake_exe = "\"" + CompilerPath + "\"";
+        #endif
+        std::filesystem::path ProjectAbsPath = std::filesystem::current_path() / CurrentProject_fp;
+        std::string proj_dir = ProjectAbsPath.string();
+        std::string build_dir = (ProjectAbsPath / "Compiled Projects").string();
+        std::cout << "Config (CMake) for: " << proj_dir << std::endl;
+        #if defined(_WIN32)
+            std::string cfg_cmd = cmake_exe + " -S \"" + proj_dir + "\" -B \"" + build_dir + "\"\"";
+        #elif defined(__linux__)
+            std::string cfg_cmd = cmake_exe + " -S \"" + proj_dir + "\" -B \"" + build_dir + "\"";
+        #endif
+        int cfg_result = std::system(cfg_cmd.c_str());
+        if (cfg_result != 0) {
+            std::cerr << "Error: Config (CMake) failed!" << std::endl;
+            return;
+        }
+        std::cout << "Config (CMake) successful! \nStarting compilation." << std::endl;
+        #if defined(_WIN32)
+            std::string build_cmd = cmake_exe + " --build \"" + build_dir + "\" --config Release\"";
+        #elif defined(__linux__)
+            std::string build_cmd = cmake_exe + " --build \"" + build_dir + "\" --config Release";
+        #endif
+        int build_result = std::system(build_cmd.c_str());
+        if (build_result == 0) std::cout << "Compilation Successful!"<< std::endl;
+        else std::cerr << "Error: Compilation failed during build." << std::endl;
+        CopyAssets();
+    }
     class TopBar_File_CompileProject : public UITextButton {
     public:
         TopBar_File_CompileProject() : UITextButton({0, 0, 175, 35}, {255, 255, 255, 255}, 25, {0, 0, 0, 255}, "Compile Project", {255, 0, 0, 255}, true, "Compile Project Button (File Menu, Top Bar)") {}
         void OnClick() override {
-            std::string cmake_exe = "cmd /c \" \"" + CompilerPath + "\"";
-            std::filesystem::path ProjectAbsPath = std::filesystem::current_path() / CurrentProject_fp;
-            std::string proj_dir = ProjectAbsPath.string();
-            std::string build_dir = (ProjectAbsPath / "Compiled Projects").string();
-            std::cout << "Config (CMake) for: " << proj_dir << std::endl;
-            std::string cfg_cmd = cmake_exe + " -S \"" + proj_dir + "\" -B \"" + build_dir + "\"";
-            int cfg_result = std::system(cfg_cmd.c_str());
-            if (cfg_result != 0) {
-                std::cerr << "Error: Config (CMake) failed!" << std::endl;
-                return;
-            }
-            std::cout << "Config (CMake) successful! \nStarting compilation." << std::endl;
-            std::string build_cmd = cmake_exe + " --build \"" + build_dir + "\" --config Release\"";
-            int build_result = std::system(build_cmd.c_str());
-            if (build_result == 0) std::cout << "Compilation Successful!";
-            else std::cerr << "Error: Compilation failed during build." << std::endl;
+            Compile();
         }
     };
     class TopBar_File_CompileProjectAndRun : public UITextButton {
     public:
         TopBar_File_CompileProjectAndRun() : UITextButton({0, 0, 175, 35}, {255, 255, 255, 255}, 25, {0, 0, 0, 255}, "Compile Project and Execute", {255, 0, 0, 255}, true, "Compile Project and Execute Button (File Menu, Top Bar)") {}
         void OnClick() override {
-            std::string cmake_exe = "cmd /c \" \"" + CompilerPath + "\"";
+            Compile();
             std::filesystem::path ProjectAbsPath = std::filesystem::current_path() / CurrentProject_fp;
-            std::string proj_dir = ProjectAbsPath.string();
-            std::string build_dir = (ProjectAbsPath / "Compiled Projects").string();
-            std::cout << "Config (CMake) for: " << proj_dir << std::endl;
-            std::string cfg_cmd = cmake_exe + " -S \"" + proj_dir + "\" -B \"" + build_dir + "\"";
-            int cfg_result = std::system(cfg_cmd.c_str());
-            if (cfg_result != 0) {
-                std::cerr << "Error: Config (CMake) failed!" << std::endl;
-                return;
-            }
-            std::cout << "Config (CMake) successful! \nStarting compilation." << std::endl;
-            std::string build_cmd = cmake_exe + " --build \"" + build_dir + "\" --config Release\"";
-            int build_result = std::system(build_cmd.c_str());
-            if (build_result != 0) {
-                std::cerr << "Error: Compilation failed during build." << std::endl;
-                return;
-            }
-            std::cout << "Compilation Successful!" << std::endl;
-            int run_result = std::system(("cmd /c \"" + (ProjectAbsPath / "Compiled Projects" / "Release" / "UserProject.exe").string() + "\"").c_str());
+            #if defined(_WIN32)
+                std::string command = "cmd /c \"cd /d \"\"" + (ProjectAbsPath/"Compiled Projects" / "Release").string() + "\" && \"" + (ProjectAbsPath/"Compiled Projects" / "Release" / "UserProject.exe").string() + "\"\"";
+            #elif defined(__linux__)
+                std::string command = "cd \"" + (ProjectAbsPath/"Compiled Projects" / "Release").string() + "\" && ./UserProject";
+            #endif
+            int run_result = std::system(command.c_str());
             if (run_result == 0) std::cout << "Execution Successful!" << std::endl;
             else std::cerr << "Error: Execution failed." << std::endl;
         }
