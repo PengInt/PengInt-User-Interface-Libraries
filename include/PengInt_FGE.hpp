@@ -25,10 +25,11 @@ public:
 };
 
 namespace {
-    std::string CurrentProject_fp = "Project";
+    std::string CurrentProject_fp;
     UIElementArray* TopBar_File_OnClickArray;
     UIElementArray* TopBar_Edit_OnClickArray;
     UIElementArray* TopBar_VCS_OnClickArray;
+    UIElementArray* TopBarArray;
     std::string CompilerPath = "C:\\Program Files\\JetBrains\\CLion 2025.2.4\\bin\\cmake\\win\\x64\\bin\\cmake.exe";
     void CopyAssets() {
         std::filesystem::path src_dir = std::filesystem::current_path() / CurrentProject_fp / "Workspace" / "Assets";
@@ -182,12 +183,25 @@ namespace {
             TopBar_VCS_OnClickArray->ToggleVisibility();
         }
     };
+
+    class StartScreen_LoadProjectButton : public UITextButton {
+        std::string ProjectName;
+    public:
+        StartScreen_LoadProjectButton(std::string proj_name, Vector4 rect) : UITextButton(rect, {255, 255, 255, 255}, 25, {0, 0, 0, 255}, proj_name, {255, 255, 255, 255}, false, "LoadProject - " + proj_name) {
+            ProjectName = proj_name;
+        }
+        void OnClick() override {
+            CurrentProject_fp = ProjectName;
+            Visible = false;
+            TopBarArray->ToggleVisibility();
+        }
+    };
 }
 
 class FillipGameEngineWindow : public Renderer {
     Texture FillipLogo_WT;
     std::chrono::steady_clock::time_point start_time_chrono;
-    UIElementArray* TopBarArray;
+    UIElementArray* LoadProjects;
     void FillipSetup() {
         start_time_chrono = std::chrono::steady_clock::now();
         FillipLogo_WT = LoadTexture("Jeremiah-Fillip_Logo (White Text).png");
@@ -200,6 +214,10 @@ class FillipGameEngineWindow : public Renderer {
             new TopBar_File(),
             new TopBar_Edit(),
             new TopBar_VCS()
+        });
+        TopBarArray->ToggleVisibility();
+        LoadProjects = new UIElementArray(true, 5, {
+            new StartScreen_LoadProjectButton("Project", {0, 0, 250, 50})
         });
     }
     virtual void Fillip_OnRun() {}

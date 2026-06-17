@@ -256,7 +256,7 @@ public:
             float dt = GetFrameTime();
             if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
                 Vector2 c_pos = GetMousePosition();
-                for (UIButton* btn : UIIButtons) if (c_pos.x > btn->POS.x && c_pos.y > btn->POS.y && c_pos.x < btn->POS.x+btn->SIZE.x && c_pos.y < btn->POS.y+btn->SIZE.y) { btn->OnClick(); break; }
+                for (UIButton* btn : UIIButtons) if (c_pos.x > btn->POS.x && c_pos.y > btn->POS.y && c_pos.x < btn->POS.x+btn->SIZE.x && c_pos.y < btn->POS.y+btn->SIZE.y && btn->Visible) { btn->OnClick(); break; }
             }
             BeginDrawing();
                 PreUpdate_UI(dt, 0);
