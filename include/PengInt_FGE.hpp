@@ -33,9 +33,12 @@ namespace {
     std::string CompilerPath = "C:\\Program Files\\JetBrains\\CLion 2025.2.4\\bin\\cmake\\win\\x64\\bin\\cmake.exe";
     void CopyAssets() {
         std::filesystem::path src_dir = std::filesystem::current_path() / CurrentProject_fp / "Workspace" / "Assets";
-        std::filesystem::path tgt_dir = std::filesystem::current_path() / CurrentProject_fp / "Compiled Projects" / "Release" / "Assets";
+        std::filesystem::path tgt_dir = std::filesystem::current_path() / CurrentProject_fp / "Compiled Projects" / "Release" / "Workspace" / "Assets";
         try {
             if (std::filesystem::exists(src_dir)) {
+                std::filesystem::path workspace_dir = std::filesystem::current_path() / CurrentProject_fp / "Compiled Projects" / "Release" / "Workspace";
+                if (std::filesystem::exists(workspace_dir)) std::filesystem::remove_all(workspace_dir);
+                else std::filesystem::create_directory(workspace_dir);
                 if (std::filesystem::exists(tgt_dir)) std::filesystem::remove_all(tgt_dir);
                 auto options = std::filesystem::copy_options::recursive;
                 std::filesystem::copy(src_dir, tgt_dir, options);
