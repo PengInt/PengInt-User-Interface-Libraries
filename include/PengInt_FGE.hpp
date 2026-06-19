@@ -31,6 +31,13 @@ namespace {
     UIElementArray* TopBar_VCS_OnClickArray;
     UIElementArray* TopBarArray;
     std::string CompilerPath = "C:\\Program Files\\JetBrains\\CLion 2025.2.4\\bin\\cmake\\win\\x64\\bin\\cmake.exe";
+    class TopBar_File_OpenProject : public UITextButton {
+    public:
+        TopBar_File_OpenProject() : UITextButton({0, 0, 145, 35}, {255, 255, 255, 255}, 25, {0, 0, 0, 255}, "Load Project", {255, 0, 0, 255}, true, "Load Project Button (File Menu, Top Bar)") {}
+        bool OnClick() override {
+            return true;
+        }
+    };
     void CopyAssets() {
         std::filesystem::path src_dir = std::filesystem::current_path() / CurrentProject_fp / "Workspace" / "Assets";
         std::filesystem::path tgt_dir = std::filesystem::current_path() / CurrentProject_fp / "Compiled Projects" / "Release" / "Workspace" / "Assets";
@@ -38,7 +45,7 @@ namespace {
             if (std::filesystem::exists(src_dir)) {
                 std::filesystem::path workspace_dir = std::filesystem::current_path() / CurrentProject_fp / "Compiled Projects" / "Release" / "Workspace";
                 if (std::filesystem::exists(workspace_dir)) std::filesystem::remove_all(workspace_dir);
-                else std::filesystem::create_directory(workspace_dir);
+                std::filesystem::create_directory(workspace_dir);
                 if (std::filesystem::exists(tgt_dir)) std::filesystem::remove_all(tgt_dir);
                 auto options = std::filesystem::copy_options::recursive;
                 std::filesystem::copy(src_dir, tgt_dir, options);
@@ -79,8 +86,22 @@ namespace {
         } catch (const std::filesystem::filesystem_error& e) {
             std::cerr << e.what() << std::endl;
         }
+        src_dir = std::filesystem::current_path() / "images";
+        tgt_dir = std::filesystem::current_path() / CurrentProject_fp / "Compiled Projects" / "Release" / "images";
+        try {
+            if (std::filesystem::exists(src_dir)) {
+                if (std::filesystem::exists(tgt_dir)) std::filesystem::remove_all(tgt_dir);
+                auto options = std::filesystem::copy_options::recursive;
+                std::filesystem::copy(src_dir, tgt_dir, options);
+            } else std::cerr << "Error: Source directory doesn't exist: " << src_dir.string() << std::endl;
+        } catch (const std::filesystem::filesystem_error& e) {
+            std::cerr << e.what() << std::endl;
+        }
     }
     void Compile() {
+        std::filesystem::path compiled_dir = std::filesystem::current_path() / CurrentProject_fp / "Compiled Projects";
+        if (std::filesystem::exists(compiled_dir)) std::filesystem::remove_all(compiled_dir);
+        std::filesystem::create_directory(compiled_dir);
         #if defined(_WIN32)
             std::string cmake_exe = "cmd /c \"\"" + CompilerPath + "\"";
         #elif defined(__linux__)
@@ -114,14 +135,15 @@ namespace {
     class TopBar_File_CompileProject : public UITextButton {
     public:
         TopBar_File_CompileProject() : UITextButton({0, 0, 175, 35}, {255, 255, 255, 255}, 25, {0, 0, 0, 255}, "Compile Project", {255, 0, 0, 255}, true, "Compile Project Button (File Menu, Top Bar)") {}
-        void OnClick() override {
+        bool OnClick() override {
             Compile();
+            return false;
         }
     };
     class TopBar_File_CompileProjectAndRun : public UITextButton {
     public:
         TopBar_File_CompileProjectAndRun() : UITextButton({0, 0, 175, 35}, {255, 255, 255, 255}, 25, {0, 0, 0, 255}, "Compile Project and Execute", {255, 0, 0, 255}, true, "Compile Project and Execute Button (File Menu, Top Bar)") {}
-        void OnClick() override {
+        bool OnClick() override {
             Compile();
             std::filesystem::path ProjectAbsPath = std::filesystem::current_path() / CurrentProject_fp;
             #if defined(_WIN32)
@@ -132,6 +154,7 @@ namespace {
             int run_result = std::system(command.c_str());
             if (run_result == 0) std::cout << "Execution Successful!" << std::endl;
             else std::cerr << "Error: Execution failed." << std::endl;
+            return false;
         }
     };
     class TopBar_File : public UITextButton {
@@ -139,17 +162,18 @@ namespace {
         TopBar_File() : UITextButton({0, 0, 55, 35}, {255, 255, 255, 255}, 25, {0, 0, 0, 255}, "File", {255, 0, 0, 255}, true, "File Button (Top Bar)") {
             TopBar_File_OnClickArray = new UIElementArray(true, 0, {
                 new UITextButton({0, 35, 135, 35}, {255, 255, 255, 255}, 25, {0, 0, 0, 255}, "New Project", {255, 0, 0, 255}, true, "New Project Button (File Menu, Top Bar)"),
-                new UITextButton({0, 0, 145, 35}, {255, 255, 255, 255}, 25, {0, 0, 0, 255}, "Load Project", {255, 0, 0, 255}, true, "Load Project Button (File Menu, Top Bar)"),
+                new TopBar_File_OpenProject(),
                 new TopBar_File_CompileProject(),
                 new TopBar_File_CompileProjectAndRun(),
                 new UITextButton({0, 0, 95, 35}, {255, 255, 255, 255}, 25, {0, 0, 0, 255}, "Settings", {255, 0, 0, 255}, true, "Settings Button (File Menu, Top Bar)"),
             });
             TopBar_File_OnClickArray->ToggleVisibility();
         }
-        void OnClick() override {
+        bool OnClick() override {
             TopBar_File_OnClickArray->ToggleVisibility();
             if ((*TopBar_Edit_OnClickArray)[0]->Visible) TopBar_Edit_OnClickArray->ToggleVisibility();
             if ((*TopBar_VCS_OnClickArray)[0]->Visible) TopBar_VCS_OnClickArray->ToggleVisibility();
+            return false;
         }
     };
     class TopBar_Edit : public UITextButton {
@@ -163,10 +187,11 @@ namespace {
             });
             TopBar_Edit_OnClickArray->ToggleVisibility();
         }
-        void OnClick() override {
+        bool OnClick() override {
             if ((*TopBar_File_OnClickArray)[0]->Visible) TopBar_File_OnClickArray->ToggleVisibility();
             TopBar_Edit_OnClickArray->ToggleVisibility();
             if ((*TopBar_VCS_OnClickArray)[0]->Visible) TopBar_VCS_OnClickArray->ToggleVisibility();
+            return false;
         }
     };
     class TopBar_VCS : public UITextButton {
@@ -180,23 +205,23 @@ namespace {
             });
             TopBar_VCS_OnClickArray->ToggleVisibility();
         }
-        void OnClick() override {
+        bool OnClick() override {
             if ((*TopBar_File_OnClickArray)[0]->Visible) TopBar_File_OnClickArray->ToggleVisibility();
             if ((*TopBar_Edit_OnClickArray)[0]->Visible) TopBar_Edit_OnClickArray->ToggleVisibility();
             TopBar_VCS_OnClickArray->ToggleVisibility();
+            return false;
         }
     };
 
     class StartScreen_LoadProjectButton : public UITextButton {
         std::string ProjectName;
     public:
-        StartScreen_LoadProjectButton(std::string proj_name, Vector4 rect) : UITextButton(rect, {255, 255, 255, 255}, 25, {0, 0, 0, 255}, proj_name, {255, 255, 255, 255}, false, "LoadProject - " + proj_name) {
+        StartScreen_LoadProjectButton(const std::string proj_name, Vector4 rect) : UITextButton(rect, {255, 255, 255, 255}, 25, {0, 0, 0, 255}, proj_name, {255, 255, 255, 255}, true, "LoadProject - " + proj_name) {
             ProjectName = proj_name;
         }
-        void OnClick() override {
-            CurrentProject_fp = ProjectName;
-            Visible = false;
-            TopBarArray->ToggleVisibility();
+        bool OnClick() override {
+            CurrentProject_fp = "Projects/" + ProjectName;
+            return true;
         }
     };
 }
@@ -207,21 +232,66 @@ class FillipGameEngineWindow : public Renderer {
     UIElementArray* LoadProjects;
     void FillipSetup() {
         start_time_chrono = std::chrono::steady_clock::now();
-        FillipLogo_WT = LoadTexture("Jeremiah-Fillip_Logo (White Text).png");
+        FillipLogo_WT = LoadTexture("images/Jeremiah-Fillip_Logo (White Text).png");
         BeginDrawing();
             ClearBackground(BLACK);
             DrawText("A culmination of the Penguin Interactive Visual Libraries", 25, 750, 25, WHITE);
             DrawTextureEx(FillipLogo_WT, {208, 183}, 0, 6, WHITE);
         EndDrawing();
+    }
+    void LoadProjectMenu() {
+        CLEAR_BACKHROUND = true;
+        RESET_UI();
+        LoadProjects = new UIElementArray(true, 5, {
+            new StartScreen_LoadProjectButton("Project", {0, 0, 250, 35})
+        });
+        SetUIScale();
+        while (!WindowShouldClose()) {
+            if (UI_LOOP()) { EXIT_APPLICATION = false; break; }
+        }
+        RESET_UI();
         TopBarArray = new UIElementArray(false, 0, {
             new TopBar_File(),
             new TopBar_Edit(),
             new TopBar_VCS()
         });
-        TopBarArray->ToggleVisibility();
-        LoadProjects = new UIElementArray(true, 5, {
-            new StartScreen_LoadProjectButton("Project", {0, 0, 250, 50})
-        });
+        if (!EXIT_APPLICATION) EXIT_TO_MENU = true;
+        CLEAR_BACKHROUND = false;
+        SetUIScale();
+        IS_UI_ALREADY_SCALED = true;
+    }
+    void OnRun() override {
+        std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
+        float seconds_left = 1 - std::chrono::duration_cast<std::chrono::seconds>(now-start_time_chrono).count();
+        while (!WindowShouldClose()) {
+            seconds_left -= GetFrameTime();
+            if (seconds_left <= 0) break;
+            BeginDrawing();
+            ClearBackground(BLACK);
+            DrawTextureEx(FillipLogo_WT, {208, 183}, 0, 6, WHITE);
+            DrawTextEx(Roboto_Mono, "A culmination of the Penguin Interactive Visual Libraries", {10, 760}, 30, 0, WHITE);
+            EndDrawing();
+        }
+        seconds_left = 1;
+        while (!WindowShouldClose()) {
+            seconds_left -= GetFrameTime();
+            if (seconds_left <= 0) break;
+            BeginDrawing();
+            ClearBackground(BLACK);
+            DrawTextureEx(FillipLogo_WT, {208, 183}, 0, 6, {255, 255, 255, (unsigned char) (255*seconds_left)});
+            DrawTextEx(Roboto_Mono, "A culmination of the Penguin Interactive Visual Libraries", {10, 760}, 30, 0, {255, 255, 255, (unsigned char) (255*seconds_left)});
+            EndDrawing();
+        }
+        Fillip_OnRun();
+        LoadProjectMenu();
+    }
+    void LateRun() override {
+        (*TopBar_File_OnClickArray)[0]->POS.x = (*TopBarArray)[0]->POS.x;
+        TopBar_File_OnClickArray->UpdateSpacing();
+        (*TopBar_Edit_OnClickArray)[0]->POS.x = (*TopBarArray)[1]->POS.x;
+        TopBar_Edit_OnClickArray->UpdateSpacing();
+        (*TopBar_VCS_OnClickArray)[0]->POS.x = (*TopBarArray)[2]->POS.x;
+        TopBar_VCS_OnClickArray->UpdateSpacing();
     }
     virtual void Fillip_OnRun() {}
     virtual void Fillip_OnUpdate(float dt, float t) {}
@@ -267,37 +337,8 @@ class FillipGameEngineWindow : public Renderer {
         else if (CameraYaw < -std::numbers::pi) CameraYaw += 2*std::numbers::pi;
         Fillip_OnUpdate(dt, t);
     }
-    void OnRun() override {
-        std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
-        float seconds_left = 1 - std::chrono::duration_cast<std::chrono::seconds>(now-start_time_chrono).count();
-        while (!WindowShouldClose()) {
-            seconds_left -= GetFrameTime();
-            if (seconds_left <= 0) break;
-            BeginDrawing();
-                ClearBackground(BLACK);
-                DrawTextureEx(FillipLogo_WT, {208, 183}, 0, 6, WHITE);
-                DrawTextEx(Roboto_Mono, "A culmination of the Penguin Interactive Visual Libraries", {10, 760}, 30, 0, WHITE);
-            EndDrawing();
-        }
-        seconds_left = 1;
-        while (!WindowShouldClose()) {
-            seconds_left -= GetFrameTime();
-            if (seconds_left <= 0) break;
-            BeginDrawing();
-                ClearBackground(BLACK);
-                DrawTextureEx(FillipLogo_WT, {208, 183}, 0, 6, {255, 255, 255, (unsigned char) (255*seconds_left)});
-                DrawTextEx(Roboto_Mono, "A culmination of the Penguin Interactive Visual Libraries", {10, 760}, 30, 0, {255, 255, 255, (unsigned char) (255*seconds_left)});
-            EndDrawing();
-        }
-        Fillip_OnRun();
-    }
-    void LateRun() override {
-        (*TopBar_File_OnClickArray)[0]->POS.x = (*TopBarArray)[0]->POS.x;
-        TopBar_File_OnClickArray->UpdateSpacing();
-        (*TopBar_Edit_OnClickArray)[0]->POS.x = (*TopBarArray)[1]->POS.x;
-        TopBar_Edit_OnClickArray->UpdateSpacing();
-        (*TopBar_VCS_OnClickArray)[0]->POS.x = (*TopBarArray)[2]->POS.x;
-        TopBar_VCS_OnClickArray->UpdateSpacing();
+    void OnEnd() override {
+        if (EXIT_TO_MENU && !EXIT_APPLICATION) LoadProjectMenu();
     }
 public:
     FillipGameEngineWindow() : Renderer(800, 800, "Fillip Game Engine") {

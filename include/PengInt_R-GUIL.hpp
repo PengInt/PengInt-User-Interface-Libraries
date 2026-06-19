@@ -156,7 +156,7 @@ std::vector<PengIntShaderStructs::LightSource> DeRefLS(std::vector<PengIntShader
 class Renderer : public Window {
 protected:
     std::array<float, 3> CameraPosition;
-    float CameraPitch, CameraYaw;
+    float CameraPitch, CameraYaw, CameraRoll;
     std::array<float, 4> CameraRotation;
 private:
     Shader DrawShader;
@@ -193,6 +193,7 @@ private:
         CameraPosition = {0, 0, 0};
         CameraPitch = 0;
         CameraYaw = 0;
+        CameraRoll = 0;
         CameraRotation = {0, 1, 0, 0};
     }
     void SyncGPUData(const std::vector<PengIntShaderStructs::Vertex>& vertices, const std::vector<PengIntShaderStructs::Triangle>& triangles) {

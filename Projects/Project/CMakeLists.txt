@@ -9,7 +9,7 @@ if (WIN32)
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++ -static")
 endif()
 
-include_directories(${CMAKE_SOURCE_DIR}/../include)
+include_directories(${CMAKE_SOURCE_DIR}/../../include)
 set(OPENGL_VERSION "4.3" CACHE STRING "FORCE OPENGL 4.3" FORCE)
 include(FetchContent)
 FetchContent_Declare(
