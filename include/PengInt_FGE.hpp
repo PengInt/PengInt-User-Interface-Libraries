@@ -25,19 +25,45 @@ public:
 };
 
 namespace {
-    std::string CurrentProject_fp;
+    std::filesystem::path CurrentProject_fp;
     UIElementArray* TopBar_File_OnClickArray;
     UIElementArray* TopBar_Edit_OnClickArray;
     UIElementArray* TopBar_VCS_OnClickArray;
     UIElementArray* TopBarArray;
     std::string CompilerPath = "C:\\Program Files\\JetBrains\\CLion 2025.2.4\\bin\\cmake\\win\\x64\\bin\\cmake.exe";
-    class TopBar_File_OpenProject : public UITextButton {
-    public:
-        TopBar_File_OpenProject() : UITextButton({0, 0, 145, 35}, {255, 255, 255, 255}, 25, {0, 0, 0, 255}, "Load Project", {255, 0, 0, 255}, true, "Load Project Button (File Menu, Top Bar)") {}
-        bool OnClick() override {
-            return true;
+    void LOAD_EVERYTHING() {
+        std::string f_ext = ".json";
+        std::filesystem::path mat_dir = CurrentProject_fp / "Workspace" / "Assets" / "Immediate" / "Materials";
+        try {
+            if (std::filesystem::exists(mat_dir) && std::filesystem::is_directory(mat_dir)) {
+                for (const auto& entry : std::filesystem::directory_iterator(mat_dir)) {
+                    if (std::filesystem::is_regular_file(entry) && entry.path().extension() == f_ext) LoadMaterialFromJSON(entry.path().string().c_str());
+                }
+            } else std::cerr << "Specified path does not exist or isn't a directory: " << mat_dir.string() << std::endl;
+        } catch (const std::filesystem::filesystem_error& e) {
+            std::cerr << "Filesystem error: " << e.what() << std::endl;
         }
-    };
+        std::filesystem::path mod_dir = CurrentProject_fp / "Workspace" / "Assets" / "Immediate" / "Models";
+        try {
+            if (std::filesystem::exists(mod_dir) && std::filesystem::is_directory(mod_dir)) {
+                for (const auto& entry : std::filesystem::directory_iterator(mod_dir)) {
+                    if (std::filesystem::is_regular_file(entry) && entry.path().extension() == f_ext) LoadObjectFromJSON(entry.path().string().c_str());
+                }
+            } else std::cerr << "Specified path does not exist or isn't a directory: " << mod_dir.string() << std::endl;
+        } catch (const std::filesystem::filesystem_error& e) {
+            std::cerr << "Filesystem error: " << e.what() << std::endl;
+        }
+        std::filesystem::path ls_dir = CurrentProject_fp / "Workspace" / "Assets" / "Immediate" / "Light Sources";
+        try {
+            if (std::filesystem::exists(ls_dir) && std::filesystem::is_directory(ls_dir)) {
+                for (const auto& entry : std::filesystem::directory_iterator(ls_dir)) {
+                    if (std::filesystem::is_regular_file(entry) && entry.path().extension() == f_ext) LoadLightSourceFromJSON(entry.path().string().c_str());
+                }
+            } else std::cerr << "Specified path does not exist or isn't a directory: " << ls_dir.string() << std::endl;
+        } catch (const std::filesystem::filesystem_error& e) {
+            std::cerr << "Filesystem error: " << e.what() << std::endl;
+        }
+    }
     void CopyAssets() {
         std::filesystem::path src_dir = std::filesystem::current_path() / CurrentProject_fp / "Workspace" / "Assets";
         std::filesystem::path tgt_dir = std::filesystem::current_path() / CurrentProject_fp / "Compiled Projects" / "Release" / "Workspace" / "Assets";
@@ -132,104 +158,11 @@ namespace {
         else std::cerr << "Error: Compilation failed during build." << std::endl;
         CopyAssets();
     }
-    class TopBar_File_CompileProject : public UITextButton {
-    public:
-        TopBar_File_CompileProject() : UITextButton({0, 0, 175, 35}, {255, 255, 255, 255}, 25, {0, 0, 0, 255}, "Compile Project", {255, 0, 0, 255}, true, "Compile Project Button (File Menu, Top Bar)") {}
-        bool OnClick() override {
-            Compile();
-            return false;
-        }
-    };
-    class TopBar_File_CompileProjectAndRun : public UITextButton {
-    public:
-        TopBar_File_CompileProjectAndRun() : UITextButton({0, 0, 175, 35}, {255, 255, 255, 255}, 25, {0, 0, 0, 255}, "Compile Project and Execute", {255, 0, 0, 255}, true, "Compile Project and Execute Button (File Menu, Top Bar)") {}
-        bool OnClick() override {
-            Compile();
-            std::filesystem::path ProjectAbsPath = std::filesystem::current_path() / CurrentProject_fp;
-            #if defined(_WIN32)
-                std::string command = "cmd /c \"cd /d \"\"" + (ProjectAbsPath/"Compiled Projects" / "Release").string() + "\" && \"" + (ProjectAbsPath/"Compiled Projects" / "Release" / "UserProject.exe").string() + "\"\"";
-            #elif defined(__linux__)
-                std::string command = "cd \"" + (ProjectAbsPath/"Compiled Projects" / "Release").string() + "\" && ./UserProject";
-            #endif
-            int run_result = std::system(command.c_str());
-            if (run_result == 0) std::cout << "Execution Successful!" << std::endl;
-            else std::cerr << "Error: Execution failed." << std::endl;
-            return false;
-        }
-    };
-    class TopBar_File : public UITextButton {
-    public:
-        TopBar_File() : UITextButton({0, 0, 55, 35}, {255, 255, 255, 255}, 25, {0, 0, 0, 255}, "File", {255, 0, 0, 255}, true, "File Button (Top Bar)") {
-            TopBar_File_OnClickArray = new UIElementArray(true, 0, {
-                new UITextButton({0, 35, 135, 35}, {255, 255, 255, 255}, 25, {0, 0, 0, 255}, "New Project", {255, 0, 0, 255}, true, "New Project Button (File Menu, Top Bar)"),
-                new TopBar_File_OpenProject(),
-                new TopBar_File_CompileProject(),
-                new TopBar_File_CompileProjectAndRun(),
-                new UITextButton({0, 0, 95, 35}, {255, 255, 255, 255}, 25, {0, 0, 0, 255}, "Settings", {255, 0, 0, 255}, true, "Settings Button (File Menu, Top Bar)"),
-            });
-            TopBar_File_OnClickArray->ToggleVisibility();
-        }
-        bool OnClick() override {
-            TopBar_File_OnClickArray->ToggleVisibility();
-            if ((*TopBar_Edit_OnClickArray)[0]->Visible) TopBar_Edit_OnClickArray->ToggleVisibility();
-            if ((*TopBar_VCS_OnClickArray)[0]->Visible) TopBar_VCS_OnClickArray->ToggleVisibility();
-            return false;
-        }
-    };
-    class TopBar_Edit : public UITextButton {
-    public:
-        TopBar_Edit() : UITextButton({0, 0, 75, 35}, {255, 255, 255, 255}, 25, {0, 0, 0, 255}, "Edit", {0, 0, 255, 255}, true, "Edit Button (Top Bar)") {
-            TopBar_Edit_OnClickArray = new UIElementArray(true, 0, {
-                new UITextButton({0, 35, 75, 35}, {255, 255, 255, 255}, 25, {0, 0, 0, 255}, "Search", {0, 0, 255, 255}, true, "Search Button (Edit Menu, Top Bar)"),
-                new UITextButton({0, 0, 45, 35}, {255, 255, 255, 255}, 25, {0, 0, 0, 255}, "Cut", {0, 0, 255, 255}, true, "Cut Button (Edit Menu, Top Bar)"),
-                new UITextButton({0, 0, 55, 35}, {255, 255, 255, 255}, 25, {0, 0, 0, 255}, "Copy", {0, 0, 255, 255}, true, "Copy Button (Edit Menu, Top Bar)"),
-                new UITextButton({0, 0, 65, 35}, {255, 255, 255, 255}, 25, {0, 0, 0, 255}, "Paste", {0, 0, 255, 255}, true, "Paste Button (Edit Menu, Top Bar)"),
-            });
-            TopBar_Edit_OnClickArray->ToggleVisibility();
-        }
-        bool OnClick() override {
-            if ((*TopBar_File_OnClickArray)[0]->Visible) TopBar_File_OnClickArray->ToggleVisibility();
-            TopBar_Edit_OnClickArray->ToggleVisibility();
-            if ((*TopBar_VCS_OnClickArray)[0]->Visible) TopBar_VCS_OnClickArray->ToggleVisibility();
-            return false;
-        }
-    };
-    class TopBar_VCS : public UITextButton {
-    public:
-        TopBar_VCS() : UITextButton({0, 0, 195, 35}, {255, 255, 255, 255}, 25, {0, 0, 0, 255}, "Version Control", {0, 255, 0, 255}, true, "VCS Button (Top Bar)") {
-            TopBar_VCS_OnClickArray = new UIElementArray(true, 0, {
-                new UITextButton({0, 35, 75, 35}, {255, 255, 255, 255}, 25, {0, 0, 0, 255}, "Commit", {0, 255, 0, 255}, true, "Commit Button (VCS Menu, Top Bar)"),
-                new UITextButton({0, 0, 55, 35}, {255, 255, 255, 255}, 25, {0, 0, 0, 255}, "Push", {0, 255, 0, 255}, true, "Push Button (VCS Menu, Top Bar)"),
-                new UITextButton({0, 0, 55, 35}, {255, 255, 255, 255}, 25, {0, 0, 0, 255}, "Pull", {0, 255, 0, 255}, true, "Pull Button (VCS Menu, Top Bar)"),
-                new UITextButton({0, 0, 105, 35}, {255, 255, 255, 255}, 25, {0, 0, 0, 255}, "Configure", {0, 255, 0, 255}, true, "Configure Button (VCS Menu, Top Bar)"),
-            });
-            TopBar_VCS_OnClickArray->ToggleVisibility();
-        }
-        bool OnClick() override {
-            if ((*TopBar_File_OnClickArray)[0]->Visible) TopBar_File_OnClickArray->ToggleVisibility();
-            if ((*TopBar_Edit_OnClickArray)[0]->Visible) TopBar_Edit_OnClickArray->ToggleVisibility();
-            TopBar_VCS_OnClickArray->ToggleVisibility();
-            return false;
-        }
-    };
-
-    class StartScreen_LoadProjectButton : public UITextButton {
-        std::string ProjectName;
-    public:
-        StartScreen_LoadProjectButton(const std::string proj_name, Vector4 rect) : UITextButton(rect, {255, 255, 255, 255}, 25, {0, 0, 0, 255}, proj_name, {255, 255, 255, 255}, true, "LoadProject - " + proj_name) {
-            ProjectName = proj_name;
-        }
-        bool OnClick() override {
-            CurrentProject_fp = "Projects/" + ProjectName;
-            return true;
-        }
-    };
 }
 
 class FillipGameEngineWindow : public Renderer {
     Texture FillipLogo_WT;
     std::chrono::steady_clock::time_point start_time_chrono;
-    UIElementArray* LoadProjects;
     void FillipSetup() {
         start_time_chrono = std::chrono::steady_clock::now();
         FillipLogo_WT = LoadTexture("images/Jeremiah-Fillip_Logo (White Text).png");
@@ -242,19 +175,93 @@ class FillipGameEngineWindow : public Renderer {
     void LoadProjectMenu() {
         CLEAR_BACKHROUND = true;
         RESET_UI();
-        LoadProjects = new UIElementArray(true, 5, {
-            new StartScreen_LoadProjectButton("Project", {0, 0, 250, 35})
-        });
+        PengIntShaderStructs::DESTROY_EVERYTHING();
+        UIElementArray* LoadProjects = new UIElementArray(true, 5);
+        std::filesystem::path proj_dir = std::filesystem::current_path() / "Projects";
+        try {
+            if (std::filesystem::exists(proj_dir) && std::filesystem::is_directory(proj_dir)) {
+                for (const auto& entry : std::filesystem::directory_iterator(proj_dir)) {
+                    if (entry.is_directory()) LoadProjects->push_back(new UITextButton({50, 50, 0, 35}, {255, 255, 255, 255}, 25, {0, 0, 0, 255}, entry.path().filename().string(), {255, 255, 255, 255}, true, [](UIElement* thisbtn) {
+                        CurrentProject_fp = "Projects/" + std::any_cast<std::string>(thisbtn->SpecialMap["ProjectName"]);
+                        return true;
+                    }, {{"ProjectName", entry.path().filename().string()}}, "LoadProject - " + entry.path().filename().string()));
+                }
+            } else std::cerr << "Specified path does not exist or isn't a directory: " << proj_dir.string() << std::endl;
+        } catch (const std::filesystem::filesystem_error& e) {
+            std::cerr << "Filesystem error: " << e.what() << std::endl;
+        }
         SetUIScale();
         while (!WindowShouldClose()) {
             if (UI_LOOP()) { EXIT_APPLICATION = false; break; }
         }
         RESET_UI();
+        LOAD_EVERYTHING();
         TopBarArray = new UIElementArray(false, 0, {
-            new TopBar_File(),
-            new TopBar_Edit(),
-            new TopBar_VCS()
+            new UITextButton({0, 0, 55, 35}, {255, 255, 255, 255}, 25, {0, 0, 0, 255}, "File", {255, 0, 0, 255}, true, [](UIElement* thisbtn) {
+                std::any_cast<UIElementArray*>(thisbtn->SpecialMap["TopBar_File_OnClickArray"])->ToggleVisibility();
+                if ((*std::any_cast<UIElementArray*>(thisbtn->SpecialMap["TopBar_Edit_OnClickArray"]))[0]->Visible) std::any_cast<UIElementArray*>(thisbtn->SpecialMap["TopBar_Edit_OnClickArray"])->ToggleVisibility();
+                if ((*std::any_cast<UIElementArray*>(thisbtn->SpecialMap["TopBar_VCS_OnClickArray"]))[0]->Visible) std::any_cast<UIElementArray*>(thisbtn->SpecialMap["TopBar_VCS_OnClickArray"])->ToggleVisibility();
+                return false;
+            }, {}, "File Button (Top Bar)"),
+            new UITextButton({0, 0, 75, 35}, {255, 255, 255, 255}, 25, {0, 0, 0, 255}, "Edit", {0, 0, 255, 255}, true, [](UIElement* thisbtn) {
+                if ((*TopBar_File_OnClickArray)[0]->Visible) TopBar_File_OnClickArray->ToggleVisibility();
+                TopBar_Edit_OnClickArray->ToggleVisibility();
+                if ((*TopBar_VCS_OnClickArray)[0]->Visible) TopBar_VCS_OnClickArray->ToggleVisibility();
+                return false;
+            }, {}, "Edit Button (Top Bar)"),
+            new UITextButton({0, 0, 195, 35}, {255, 255, 255, 255}, 25, {0, 0, 0, 255}, "Version Control", {0, 255, 0, 255}, true, [](UIElement* thisbtn) {
+                if ((*TopBar_File_OnClickArray)[0]->Visible) TopBar_File_OnClickArray->ToggleVisibility();
+                if ((*TopBar_Edit_OnClickArray)[0]->Visible) TopBar_Edit_OnClickArray->ToggleVisibility();
+                TopBar_VCS_OnClickArray->ToggleVisibility();
+                return false;
+            }, {}, "VCS Button (Top Bar)")
         });
+        TopBar_File_OnClickArray = new UIElementArray(true, 0, {
+            new UITextButton({0, 35, 165, 35}, {255, 255, 255, 255}, 25, {0, 0, 0, 255}, "Reload Project", {255, 0, 0, 255}, true, [](UIElement* thisbtn) {
+                PengIntShaderStructs::DESTROY_EVERYTHING();
+                LOAD_EVERYTHING();
+                return false;
+            }, {}, "Reload Project Button (File Menu, Top Bar)"),
+            new UITextButton({0, 0, 135, 35}, {255, 255, 255, 255}, 25, {0, 0, 0, 255}, "New Project", {255, 0, 0, 255}, true, [](UIElement* thisbtn) { return false; }, {}, "New Project Button (File Menu, Top Bar)"),
+            new UITextButton({0, 0, 145, 35}, {255, 255, 255, 255}, 25, {0, 0, 0, 255}, "Load Project", {255, 0, 0, 255}, true, [](UIElement* thisbtn) { return true; }, {}, "Load Project Button (File Menu, Top Bar)"),
+            new UITextButton({0, 0, 175, 35}, {255, 255, 255, 255}, 25, {0, 0, 0, 255}, "Compile Project", {255, 0, 0, 255}, true, [](UIElement* thisbtn) {
+                Compile();
+                return false;
+            }, {}, "Compile Project Button (File Menu, Top Bar)"),
+            new UITextButton({0, 0, 175, 35}, {255, 255, 255, 255}, 25, {0, 0, 0, 255}, "Compile Project and Execute", {255, 0, 0, 255}, true, [](UIElement* thisbtn) {
+                Compile();
+                std::filesystem::path ProjectAbsPath = std::filesystem::current_path() / std::any_cast<std::filesystem::path>(thisbtn->SpecialMap["CurrentProject_fp"]);
+                #if defined(_WIN32)
+                    std::string command = "cmd /c \"cd /d \"\"" + (ProjectAbsPath/"Compiled Projects" / "Release").string() + "\" && \"" + (ProjectAbsPath/"Compiled Projects" / "Release" / "UserProject.exe").string() + "\"\"";
+                #elif defined(__linux__)
+                    std::string command = "cd \"" + (ProjectAbsPath/"Compiled Projects" / "Release").string() + "\" && ./UserProject";
+                #endif
+                int run_result = std::system(command.c_str());
+                if (run_result == 0) std::cout << "Execution Successful!" << std::endl;
+                else std::cerr << "Error: Execution failed." << std::endl;
+                return false;
+            }, {{"CurrentProject_fp", CurrentProject_fp}}, "Compile Project and Execute Button (File Menu, Top Bar)"),
+            new UITextButton({0, 0, 95, 35}, {255, 255, 255, 255}, 25, {0, 0, 0, 255}, "Settings", {255, 0, 0, 255}, true, [](UIElement* thisbtn) { return false; }, {}, "Settings Button (File Menu, Top Bar)"),
+        });
+        TopBar_File_OnClickArray->ToggleVisibility();
+        TopBar_Edit_OnClickArray = new UIElementArray(true, 0, {
+            new UITextButton({0, 35, 75, 35}, {255, 255, 255, 255}, 25, {0, 0, 0, 255}, "Search", {0, 0, 255, 255}, true, [](UIElement* thisbtn) { return false; }, {}, "Search Button (Edit Menu, Top Bar)"),
+            new UITextButton({0, 0, 45, 35}, {255, 255, 255, 255}, 25, {0, 0, 0, 255}, "Cut", {0, 0, 255, 255}, true, [](UIElement* thisbtn) { return false; }, {}, "Cut Button (Edit Menu, Top Bar)"),
+            new UITextButton({0, 0, 55, 35}, {255, 255, 255, 255}, 25, {0, 0, 0, 255}, "Copy", {0, 0, 255, 255}, true, [](UIElement* thisbtn) { return false; }, {}, "Copy Button (Edit Menu, Top Bar)"),
+            new UITextButton({0, 0, 65, 35}, {255, 255, 255, 255}, 25, {0, 0, 0, 255}, "Paste", {0, 0, 255, 255}, true, [](UIElement* thisbtn) { return false; }, {}, "Paste Button (Edit Menu, Top Bar)"),
+        });
+        TopBar_Edit_OnClickArray->ToggleVisibility();
+        TopBar_VCS_OnClickArray = new UIElementArray(true, 0, {
+            new UITextButton({0, 35, 75, 35}, {255, 255, 255, 255}, 25, {0, 0, 0, 255}, "Commit", {0, 255, 0, 255}, true, [](UIElement* thisbtn) { return false; }, {}, "Commit Button (VCS Menu, Top Bar)"),
+            new UITextButton({0, 0, 55, 35}, {255, 255, 255, 255}, 25, {0, 0, 0, 255}, "Push", {0, 255, 0, 255}, true, [](UIElement* thisbtn) { return false; }, {}, "Push Button (VCS Menu, Top Bar)"),
+            new UITextButton({0, 0, 55, 35}, {255, 255, 255, 255}, 25, {0, 0, 0, 255}, "Pull", {0, 255, 0, 255}, true, [](UIElement* thisbtn) { return false; }, {}, "Pull Button (VCS Menu, Top Bar)"),
+            new UITextButton({0, 0, 105, 35}, {255, 255, 255, 255}, 25, {0, 0, 0, 255}, "Configure", {0, 255, 0, 255}, true, [](UIElement* thisbtn) { return false; }, {}, "Configure Button (VCS Menu, Top Bar)"),
+        });
+        TopBar_VCS_OnClickArray->ToggleVisibility();
+        std::unordered_map<std::string, std::any> OnClickArray_SpecialMap = {{"TopBar_File_OnClickArray", TopBar_File_OnClickArray}, {"TopBar_Edit_OnClickArray", TopBar_Edit_OnClickArray}, {"TopBar_VCS_OnClickArray", TopBar_VCS_OnClickArray}};
+        (*TopBarArray)[0]->SpecialMap = OnClickArray_SpecialMap;
+        (*TopBarArray)[1]->SpecialMap = OnClickArray_SpecialMap;
+        (*TopBarArray)[2]->SpecialMap = OnClickArray_SpecialMap;
         if (!EXIT_APPLICATION) EXIT_TO_MENU = true;
         CLEAR_BACKHROUND = false;
         SetUIScale();
@@ -339,6 +346,7 @@ class FillipGameEngineWindow : public Renderer {
     }
     void OnEnd() override {
         if (EXIT_TO_MENU && !EXIT_APPLICATION) LoadProjectMenu();
+        else { RESET_UI(); PengIntShaderStructs::DESTROY_EVERYTHING(); }
     }
 public:
     FillipGameEngineWindow() : Renderer(800, 800, "Fillip Game Engine") {

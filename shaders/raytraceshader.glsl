@@ -98,6 +98,7 @@ float visibleEffect = 0.025;
 struct RaycastResult {
     vec3 colour, light; RayHit hit; vec3 reflection_direction, refraction_direction;
     bool refl, refr;
+    int mat;
 };
 
 float CorrectHue(float h) {
@@ -107,7 +108,7 @@ float CorrectHue(float h) {
     return min(1, max(0, h)) * 255;
 }
 
-RaycastResult Raycast(vec3 origin, vec3 direction, int skip) {
+RaycastResult Raycast(vec3 origin, vec3 direction, int skip, float last_density) {
     RayHit closestHit = RayHit(-1, -1, vec3(0, 0, 0));
     for (int i = 0; i < triangleCount; i++) {
         if (i == skip) continue;
@@ -153,14 +154,15 @@ RaycastResult Raycast(vec3 origin, vec3 direction, int skip) {
         }
         if (material.transparency != 0) {
             willRefr = true;
-            refr = direction;
+            if (dot(direction, normal) < 0) refr = refract(direction, normal, last_density/material.density);
+            else refr = refract(direction, -normal, material.density/last_density);
         }
     }
     vec3 lightAddition = vec3(0, 0, 0);
     for (int i = 0; i < lightCount; i++) {
         LightSource l = lsdata[i];
         vec3 dlp = vec3(l.x, l.y, l.z) - origin;
-        if (LightRaycast(origin, direction, l, -1) != -1) {
+        if (LightRaycast(origin, direction, l, closestHit.tri_i) != -1) {
             float ddot = dot(dlp, direction);
             float ffactor = 1;
             if (ddot <= 0) ffactor = exp(ddot*2);
@@ -176,36 +178,43 @@ RaycastResult Raycast(vec3 origin, vec3 direction, int skip) {
         finalColour.b /= highest;
     }
     finalColour = vec3(uint(finalColour.r), uint(finalColour.g), uint(finalColour.b));
-    return RaycastResult(finalColour, lightAddition, closestHit, refl, refr, willRefl, willRefr);
+    int mat = -1;
+    if (closestHit.tri_i != -1) mat = data[closestHit.tri_i].m;
+    return RaycastResult(finalColour, lightAddition, closestHit, refl, refr, willRefl, willRefr, mat);
 }
 
 vec3 RaycastHandler(vec3 origin, vec3 direction) {
+    const int depth = 16;
+    RaycastResult stack[depth+1];
+    Material stackmat[depth+1];
+    float opacity[depth+1];
+    int stackdepth[depth+1];
+    stack[0] = Raycast(origin, direction, -1, 1);
+    opacity[0] = 1;
+    stackdepth[0] = 0;
+    int size = 1;
+
     vec3 c = vec3(0, 0, 0);
-    Material lastMat = Material(1, 1, 1, 0, 0, 0, 0, 0);
-    vec3 lc = vec3(0, 0, 0);
-    float currentRefl = 1;
-    int skip = -1;
-    for (int i = 0; i < 16; i++) {
-        RaycastResult RR = Raycast(origin, direction, skip);
-        c += RR.colour*currentRefl-lc*currentRefl+RR.light;
-        if (RR.refl == false) break;
-        lc = RR.colour*currentRefl;
-        lastMat = mdata[int(data[RR.hit.tri_i].m)];
-        currentRefl *= mdata[int(data[RR.hit.tri_i].m)].reflectivity;
-        origin = RR.hit.loc;
-        direction = RR.reflection_direction;
-        skip = RR.hit.tri_i;
+    while (size > 0) {
+        if (opacity[size-1] <= 0.01) { size--; continue; }
+        RaycastResult c_ray = stack[size-1];
+        float o = opacity[size-1];
+        if (c_ray.hit.tri_i != -1){
+            c += c_ray.colour * (1 - mdata[c_ray.mat].reflectivity) * (1 - mdata[c_ray.mat].transparency) * o + c_ray.light * o;
+        }
+        else { c += c_ray.light * o; size--; continue; }
+        if (stackdepth[size-1] > depth) { size--; continue; }
+        if (size > depth) { size--; continue; }
+        if (c_ray.hit.tri_i == -1) { size--; continue; }
+        stack[size-1] = Raycast(c_ray.hit.loc, c_ray.reflection_direction, c_ray.hit.tri_i, mdata[c_ray.mat].density);
+        opacity[size-1] = o*mdata[c_ray.mat].reflectivity;
+        stackdepth[size-1] = stackdepth[size-1]+1;
+        size++;
+        if (size > depth) { size--; continue; }
+        stack[size-1] = Raycast(c_ray.hit.loc, c_ray.refraction_direction, c_ray.hit.tri_i, mdata[c_ray.mat].density);
+        opacity[size-1] = o*mdata[c_ray.mat].transparency;
+        stackdepth[size-1] = stackdepth[size-2];
     }
-    /*float highest = max(max(c.r, c.g), c.b);
-    if (highest > 255) {
-        highest /= 255;
-        c.r /= highest;
-        c.g /= highest;
-        c.b /= highest;
-    }*/
-    /*c.r = min(255, c.r);
-    c.g = min(255, c.g);
-    c.b = min(255, c.b);*/
     c.r = CorrectHue(c.r);
     c.g = CorrectHue(c.g);
     c.b = CorrectHue(c.b);
@@ -218,7 +227,6 @@ void main() {
     uint pixelIdx = idy*screenWidth+idx;
     if (idx >= screenWidth || idy >= screenHeight) return;
     vec4 n_camRot = vec4(camRot.y, camRot.z, camRot.w, -camRot.x);
-
     Triangle tri = data[0];
     vec3 c = RaycastHandler(camPos, rotate(n_camRot.w, n_camRot.xyz, normalize(vec3(float(idx*2)/screenWidth-1, float(int(idy*2)-int(screenHeight))/screenWidth, 1))));
     uint r = uint(c.x);

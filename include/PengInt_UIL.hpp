@@ -6,9 +6,11 @@
 #include <string>
 #include <iostream>
 #include <numbers>
+#include <chrono>
+#include <any>
+#include <unordered_map>
 
 #define GRAPHICS_API_OPENGL_43
-#include <chrono>
 
 #include "PengInt_UIL.hpp"
 #include "raylib.h"
@@ -22,21 +24,22 @@ class UIElement;
 std::vector<UIElement*> UIElements;
 class UIElement {
 public:
+    std::unordered_map<std::string, std::any> SpecialMap;
     Vector2 POS, SIZE;
     Color COL;
     Color OUTLINE;
     std::string Identifier;
     bool Visible;
-    UIElement() : POS({0, 0}), SIZE({0, 0}), COL({0, 0, 0, 0}) { Identifier = ""; }
-private: void Setup(Color& c, Color& outline) { UIElements.push_back(this); COL = c; OUTLINE = outline; Identifier = ""; Visible = true; }
-    void Setup(std::string& id, Color& c, Color& outline) { UIElements.push_back(this); COL = c; OUTLINE = outline; Identifier = id; Visible = true; }
+    UIElement() : POS({0, 0}), SIZE({0, 0}), COL({0, 0, 0, 0}) { Identifier = ""; SpecialMap = {}; }
+private: void Setup(Color& c, Color& outline, const std::unordered_map<std::string, std::any>& spec_map) { UIElements.push_back(this); COL = c; OUTLINE = outline; Identifier = ""; Visible = true; SpecialMap = spec_map; }
+    void Setup(std::string& id, Color& c, Color& outline, const std::unordered_map<std::string, std::any>& spec_map) { UIElements.push_back(this); COL = c; OUTLINE = outline; Identifier = id; Visible = true; SpecialMap = spec_map; }
 public:
-    UIElement(Vector2 p, Vector2 s, Color c, Color outline, std::string id) : POS(p), SIZE(s) { Setup(id, c, outline); }
-    UIElement(float x, float y, float w, float h, Color c, Color outline, std::string id) : POS({x, y}), SIZE({w, h}) { Setup(id, c, outline); }
-    UIElement(Vector4 r, Color c, Color outline, std::string id) : POS({r.x, r.y}), SIZE({r.z, r.w}) { Setup(id, c, outline); }
-    UIElement(Vector2 p, Vector2 s, Color c, Color outline) : POS(p), SIZE(s) { Setup(c, outline); }
-    UIElement(float x, float y, float w, float h, Color c, Color outline) : POS({x, y}), SIZE({w, h}) { Setup(c, outline); }
-    UIElement(Vector4 r, Color c, Color outline) : POS({r.x, r.y}), SIZE({r.z, r.w}) { Setup(c, outline); }
+    UIElement(Vector2 p, Vector2 s, Color c, Color outline, const std::unordered_map<std::string, std::any> spec_map, std::string id) : POS(p), SIZE(s) { Setup(id, c, outline, spec_map); }
+    UIElement(float x, float y, float w, float h, Color c, Color outline, const std::unordered_map<std::string, std::any> spec_map, std::string id) : POS({x, y}), SIZE({w, h}) { Setup(id, c, outline, spec_map); }
+    UIElement(Vector4 r, Color c, Color outline, const std::unordered_map<std::string, std::any> spec_map, std::string id) : POS({r.x, r.y}), SIZE({r.z, r.w}) { Setup(id, c, outline, spec_map); }
+    UIElement(Vector2 p, Vector2 s, Color c, Color outline, const std::unordered_map<std::string, std::any> spec_map) : POS(p), SIZE(s) { Setup(c, outline, spec_map); }
+    UIElement(float x, float y, float w, float h, Color c, Color outline, const std::unordered_map<std::string, std::any> spec_map) : POS({x, y}), SIZE({w, h}) { Setup(c, outline, spec_map); }
+    UIElement(Vector4 r, Color c, Color outline, const std::unordered_map<std::string, std::any> spec_map) : POS({r.x, r.y}), SIZE({r.z, r.w}) { Setup(c, outline, spec_map); }
     virtual void Draw() {
         DrawRectangle(POS.x, POS.y, SIZE.x, SIZE.y, COL);
         DrawRectangleLines(POS.x, POS.y, SIZE.x, SIZE.y, OUTLINE);
@@ -54,17 +57,18 @@ public:
 class UIButton;
 std::vector<UIButton*> UIButtons;
 class UIButton : public UIElement {
+    bool (*Callback)(UIElement*);
 public:
     UIButton() {}
-private: void Setup() { UIButtons.push_back(this); }
+private: void Setup(bool (*callback)(UIElement*)) { UIButtons.push_back(this); Callback = callback; }
 public:
-    UIButton(Vector2 p, Vector2 s, Color c, Color outline, std::string id) : UIElement(p, s, c, outline, id) { Setup(); }
-    UIButton(float x, float y, float w, float h, Color c, Color outline, std::string id) : UIElement(x, y, w, h, c, outline, id) { Setup(); }
-    UIButton(Vector4 r, Color c, Color outline, std::string id) : UIElement(r, c, outline, id) { Setup(); }
-    UIButton(Vector2 p, Vector2 s, Color c, Color outline) : UIElement(p, s, c, outline) { Setup(); }
-    UIButton(float x, float y, float w, float h, Color c, Color outline) : UIElement(x, y, w, h, c, outline) { Setup(); }
-    UIButton(Vector4 r, Color c, Color outline) : UIElement(r, c, outline) { Setup(); }
-    virtual bool OnClick() { std::cout << "A button was clicked (ID '" << Identifier << "'), but nothing happened, because the dev forgot to implement that part." << std::endl; }
+    UIButton(Vector2 p, Vector2 s, Color c, Color outline, bool (*callback)(UIElement*), const std::unordered_map<std::string, std::any> spec_map, std::string id) : UIElement(p, s, c, outline, spec_map, id) { Setup(callback); }
+    UIButton(float x, float y, float w, float h, Color c, Color outline, bool (*callback)(UIElement*), const std::unordered_map<std::string, std::any> spec_map, std::string id) : UIElement(x, y, w, h, c, outline, spec_map, id) { Setup(callback); }
+    UIButton(Vector4 r, Color c, Color outline, bool (*callback)(UIElement*), const std::unordered_map<std::string, std::any> spec_map, std::string id) : UIElement(r, c, outline, spec_map, id) { Setup(callback); }
+    UIButton(Vector2 p, Vector2 s, Color c, Color outline, bool (*callback)(UIElement*), const std::unordered_map<std::string, std::any> spec_map) : UIElement(p, s, c, outline, spec_map) { Setup(callback); }
+    UIButton(float x, float y, float w, float h, Color c, Color outline, bool (*callback)(UIElement*), const std::unordered_map<std::string, std::any> spec_map) : UIElement(x, y, w, h, c, outline, spec_map) { Setup(callback); }
+    UIButton(Vector4 r, Color c, Color outline, bool (*callback)(UIElement*), const std::unordered_map<std::string, std::any> spec_map) : UIElement(r, c, outline, spec_map) { Setup(callback); }
+    bool OnClick() { return Callback(this); }
 };
 
 template <typename T>
@@ -76,12 +80,12 @@ public:
     UIImage() {}
 private: void Setup(std::string& fp) { Source = LoadTexture(fp.c_str()); }
 public:
-    UIImage(Vector2 p, Vector2 s, std::string fp, Color outline, std::string id) : UIElement(p, s, {0, 0, 0, 0}, outline, id) { Setup(fp); }
-    UIImage(float x, float y, float w, float h, std::string fp, Color outline, std::string id) : UIElement(x, y, w, h, {0, 0, 0, 0}, outline, id) { Setup(fp); }
-    UIImage(Vector4 r, std::string fp, Color outline, std::string id) : UIElement(r, {0, 0, 0, 0}, outline, id) { Setup(fp); }
-    UIImage(Vector2 p, Vector2 s, std::string fp, Color outline) : UIElement(p, s, {0, 0, 0, 0}, outline) { Setup(fp); }
-    UIImage(float x, float y, float w, float h, std::string fp, Color outline) : UIElement(x, y, w, h, {0, 0, 0, 0}, outline) { Setup(fp); }
-    UIImage(Vector4 r, std::string fp, Color outline) : UIElement(r, {0, 0, 0, 0}, outline) { Setup(fp); }
+    UIImage(Vector2 p, Vector2 s, std::string fp, Color outline, const std::unordered_map<std::string, std::any> spec_map, std::string id) : UIElement(p, s, {0, 0, 0, 0}, outline, spec_map, id) { Setup(fp); }
+    UIImage(float x, float y, float w, float h, std::string fp, Color outline, const std::unordered_map<std::string, std::any> spec_map, std::string id) : UIElement(x, y, w, h, {0, 0, 0, 0}, outline, spec_map, id) { Setup(fp); }
+    UIImage(Vector4 r, std::string fp, Color outline, const std::unordered_map<std::string, std::any> spec_map, std::string id) : UIElement(r, {0, 0, 0, 0}, outline, spec_map, id) { Setup(fp); }
+    UIImage(Vector2 p, Vector2 s, std::string fp, Color outline, const std::unordered_map<std::string, std::any> spec_map) : UIElement(p, s, {0, 0, 0, 0}, outline, spec_map) { Setup(fp); }
+    UIImage(float x, float y, float w, float h, std::string fp, Color outline, const std::unordered_map<std::string, std::any> spec_map) : UIElement(x, y, w, h, {0, 0, 0, 0}, outline, spec_map) { Setup(fp); }
+    UIImage(Vector4 r, std::string fp, Color outline, const std::unordered_map<std::string, std::any> spec_map) : UIElement(r, {0, 0, 0, 0}, outline, spec_map) { Setup(fp); }
     void Draw() override {
         DrawTexturePro(Source, {0, 0, (float) Source.width, (float) Source.height}, {POS.x, POS.y, SIZE.x, SIZE.y}, {0, 0}, 0, {255, 255, 255, 255});
         DrawRectangleLines(POS.x, POS.y, SIZE.x, SIZE.y, OUTLINE);
@@ -96,12 +100,12 @@ public:
     UIImageButton() {}
 private: void Setup(std::string& fp) { Source = LoadTexture(fp.c_str()); }
 public:
-    UIImageButton(Vector2 p, Vector2 s, std::string fp, Color outline, std::string id) : UIButton(p, s, {0, 0, 0, 0}, outline, id) { Setup(fp); }
-    UIImageButton(float x, float y, float w, float h, std::string fp, Color outline, std::string id) : UIButton(x, y, w, h, {0, 0, 0, 0}, outline, id) { Setup(fp); }
-    UIImageButton(Vector4 r, std::string fp, Color outline, std::string id) : UIButton(r, {0, 0, 0, 0}, outline, id) { Setup(fp); }
-    UIImageButton(Vector2 p, Vector2 s, std::string fp, Color outline) : UIButton(p, s, {0, 0, 0, 0}, outline) { Setup(fp); }
-    UIImageButton(float x, float y, float w, float h, std::string fp, Color outline) : UIButton(x, y, w, h, {0, 0, 0, 0}, outline) { Setup(fp); }
-    UIImageButton(Vector4 r, std::string fp, Color outline) : UIButton(r, {0, 0, 0, 0}, outline) { Setup(fp); }
+    UIImageButton(Vector2 p, Vector2 s, std::string fp, Color outline, bool (*callback)(UIElement*), const std::unordered_map<std::string, std::any> spec_map, std::string id) : UIButton(p, s, {0, 0, 0, 0}, outline, callback, spec_map, id) { Setup(fp); }
+    UIImageButton(float x, float y, float w, float h, std::string fp, Color outline, bool (*callback)(UIElement*), const std::unordered_map<std::string, std::any> spec_map, std::string id) : UIButton(x, y, w, h, {0, 0, 0, 0}, outline, callback, spec_map, id) { Setup(fp); }
+    UIImageButton(Vector4 r, std::string fp, Color outline, bool (*callback)(UIElement*), const std::unordered_map<std::string, std::any> spec_map, std::string id) : UIButton(r, {0, 0, 0, 0}, outline, callback, spec_map, id) { Setup(fp); }
+    UIImageButton(Vector2 p, Vector2 s, std::string fp, Color outline, bool (*callback)(UIElement*), const std::unordered_map<std::string, std::any> spec_map) : UIButton(p, s, {0, 0, 0, 0}, outline, callback, spec_map) { Setup(fp); }
+    UIImageButton(float x, float y, float w, float h, std::string fp, Color outline, bool (*callback)(UIElement*), const std::unordered_map<std::string, std::any> spec_map) : UIButton(x, y, w, h, {0, 0, 0, 0}, outline, callback, spec_map) { Setup(fp); }
+    UIImageButton(Vector4 r, std::string fp, Color outline, bool (*callback)(UIElement*), const std::unordered_map<std::string, std::any> spec_map) : UIButton(r, {0, 0, 0, 0}, outline, callback, spec_map) { Setup(fp); }
     void Draw() override {
         DrawTexturePro(Source, {0, 0, (float) Source.width, (float) Source.height}, {POS.x, POS.y, SIZE.x, SIZE.y}, {0, 0}, 0, {255, 255, 255, 255});
         DrawRectangleLines(POS.x, POS.y, SIZE.x, SIZE.y, OUTLINE);
@@ -120,12 +124,12 @@ public:
     UIText() {}
 private: void Setup(Color tc, int ts, std::string& contents, bool adj_box_w) { TextColour = tc; TextSize = (float) ts; Contents = contents; AdjustBoxWidth = adj_box_w; }
 public:
-    UIText(Vector2 p, Vector2 s, Color tc, int ts, Color c, std::string contents, Color outline, bool adj_box_w, std::string id) : UIElement(p, s, c, outline, id) { Setup(tc, ts, contents, adj_box_w); }
-    UIText(float x, float y, float w, float h, Color tc, int ts, Color c, std::string contents, Color outline, bool adj_box_w, std::string id) : UIElement(x, y, w, h, c, outline, id) { Setup(tc, ts, contents, adj_box_w); }
-    UIText(Vector4 r, Color tc, int ts, Color c, std::string contents, Color outline, bool adj_box_w, std::string id) : UIElement(r, c, outline, id) { Setup(tc, ts, contents, adj_box_w); }
-    UIText(Vector2 p, Vector2 s, Color tc, int ts, Color c, std::string contents, Color outline, bool adj_box_w) : UIElement(p, s, c, outline) { Setup(tc, ts, contents, adj_box_w); }
-    UIText(float x, float y, float w, float h, Color tc, int ts, Color c, std::string contents, Color outline, bool adj_box_w) : UIElement(x, y, w, h, c, outline) { Setup(tc, ts, contents, adj_box_w); }
-    UIText(Vector4 r, Color tc, int ts, Color c, std::string contents, Color outline, bool adj_box_w) : UIElement(r, c, outline) { Setup(tc, ts, contents, adj_box_w); }
+    UIText(Vector2 p, Vector2 s, Color tc, int ts, Color c, std::string contents, Color outline, bool adj_box_w, const std::unordered_map<std::string, std::any> spec_map, std::string id) : UIElement(p, s, c, outline, spec_map, id) { Setup(tc, ts, contents, adj_box_w); }
+    UIText(float x, float y, float w, float h, Color tc, int ts, Color c, std::string contents, Color outline, bool adj_box_w, const std::unordered_map<std::string, std::any> spec_map, std::string id) : UIElement(x, y, w, h, c, outline, spec_map, id) { Setup(tc, ts, contents, adj_box_w); }
+    UIText(Vector4 r, Color tc, int ts, Color c, std::string contents, Color outline, bool adj_box_w, const std::unordered_map<std::string, std::any> spec_map, std::string id) : UIElement(r, c, outline, spec_map, id) { Setup(tc, ts, contents, adj_box_w); }
+    UIText(Vector2 p, Vector2 s, Color tc, int ts, Color c, std::string contents, Color outline, bool adj_box_w, const std::unordered_map<std::string, std::any> spec_map) : UIElement(p, s, c, outline, spec_map) { Setup(tc, ts, contents, adj_box_w); }
+    UIText(float x, float y, float w, float h, Color tc, int ts, Color c, std::string contents, Color outline, bool adj_box_w, const std::unordered_map<std::string, std::any> spec_map) : UIElement(x, y, w, h, c, outline, spec_map) { Setup(tc, ts, contents, adj_box_w); }
+    UIText(Vector4 r, Color tc, int ts, Color c, std::string contents, Color outline, bool adj_box_w, const std::unordered_map<std::string, std::any> spec_map) : UIElement(r, c, outline, spec_map) { Setup(tc, ts, contents, adj_box_w); }
     void Draw() override {
         DrawRectangle(POS.x, POS.y, SIZE.x, SIZE.y, COL);
         DrawRectangleLines(POS.x, POS.y, SIZE.x, SIZE.y, OUTLINE);
@@ -153,12 +157,12 @@ public:
     UITextButton() {}
 private: void Setup(Color tc, int ts, std::string& contents, bool adj_box_w) { TextColour = tc; TextSize = (float) ts; Contents = contents; AdjustBoxWidth = adj_box_w; }
 public:
-    UITextButton(Vector2 p, Vector2 s, Color tc, int ts, Color c, std::string contents, Color outline, bool adj_box_w, std::string id) : UIButton(p, s, c, outline, id) { Setup(tc, ts, contents, adj_box_w); }
-    UITextButton(float x, float y, float w, float h, Color tc, int ts, Color c, std::string contents, Color outline, bool adj_box_w, std::string id) : UIButton(x, y, w, h, c, outline, id) { Setup(tc, ts, contents, adj_box_w); }
-    UITextButton(Vector4 r, Color tc, int ts, Color c, std::string contents, Color outline, bool adj_box_w, std::string id) : UIButton(r, c, outline, id) { Setup(tc, ts, contents, adj_box_w); }
-    UITextButton(Vector2 p, Vector2 s, Color tc, int ts, Color c, std::string contents, Color outline, bool adj_box_w) : UIButton(p, s, c, outline) { Setup(tc, ts, contents, adj_box_w); }
-    UITextButton(float x, float y, float w, float h, Color tc, int ts, Color c, std::string contents, Color outline, bool adj_box_w) : UIButton(x, y, w, h, c, outline) { Setup(tc, ts, contents, adj_box_w); }
-    UITextButton(Vector4 r, Color tc, int ts, Color c, std::string contents, Color outline, bool adj_box_w) : UIButton(r, c, outline) { Setup(tc, ts, contents, adj_box_w); }
+    UITextButton(Vector2 p, Vector2 s, Color tc, int ts, Color c, std::string contents, Color outline, bool adj_box_w, bool (*callback)(UIElement*), const std::unordered_map<std::string, std::any> spec_map, std::string id) : UIButton(p, s, c, outline, callback, spec_map, id) { Setup(tc, ts, contents, adj_box_w); }
+    UITextButton(float x, float y, float w, float h, Color tc, int ts, Color c, std::string contents, Color outline, bool adj_box_w, bool (*callback)(UIElement*), const std::unordered_map<std::string, std::any> spec_map, std::string id) : UIButton(x, y, w, h, c, outline, callback, spec_map, id) { Setup(tc, ts, contents, adj_box_w); }
+    UITextButton(Vector4 r, Color tc, int ts, Color c, std::string contents, Color outline, bool adj_box_w, bool (*callback)(UIElement*), const std::unordered_map<std::string, std::any> spec_map, std::string id) : UIButton(r, c, outline, callback, spec_map, id) { Setup(tc, ts, contents, adj_box_w); }
+    UITextButton(Vector2 p, Vector2 s, Color tc, int ts, Color c, std::string contents, Color outline, bool adj_box_w, bool (*callback)(UIElement*), const std::unordered_map<std::string, std::any> spec_map) : UIButton(p, s, c, outline, callback, spec_map) { Setup(tc, ts, contents, adj_box_w); }
+    UITextButton(float x, float y, float w, float h, Color tc, int ts, Color c, std::string contents, Color outline, bool adj_box_w, bool (*callback)(UIElement*), const std::unordered_map<std::string, std::any> spec_map) : UIButton(x, y, w, h, c, outline, callback, spec_map) { Setup(tc, ts, contents, adj_box_w); }
+    UITextButton(Vector4 r, Color tc, int ts, Color c, std::string contents, Color outline, bool adj_box_w, bool (*callback)(UIElement*), const std::unordered_map<std::string, std::any> spec_map) : UIButton(r, c, outline, callback, spec_map) { Setup(tc, ts, contents, adj_box_w); }
     void Draw() override {
         DrawRectangle(POS.x, POS.y, SIZE.x, SIZE.y, COL);
         DrawRectangleLines(POS.x, POS.y, SIZE.x, SIZE.y, OUTLINE);
@@ -204,9 +208,9 @@ public:
     void ToggleVisibility() {
         for (UIElement* e : Contents) e->Visible = !e->Visible;
     }
-    UIElementArray() { VerticalStack = false; Spacing_X = 0; Spacing_Y = 0; Contents = {}; UIElementArrays.push_back(this); std::cout << "Array created at memory address: " << this << std::endl; }
-    UIElementArray(bool orientation, int spacing) { VerticalStack = orientation; if (VerticalStack) { Spacing_Y = (float) spacing; Spacing_X = 0; } else { Spacing_X = (float) spacing; Spacing_Y = 0; } UIElementArrays.push_back(this); std::cout << "Array created at memory address: " << this << std::endl; }
-    UIElementArray(bool orientation, int spacing, std::vector<UIElement*> preset) { VerticalStack = orientation; if (VerticalStack) { Spacing_Y = (float) spacing; Spacing_X = 0; } else { Spacing_X = (float) spacing; Spacing_Y = 0; } Contents = preset; UpdateSpacing(); UIElementArrays.push_back(this); std::cout << "Array created at memory address: " << this << std::endl; }
+    UIElementArray() { VerticalStack = false; Spacing_X = 0; Spacing_Y = 0; Contents = {}; UIElementArrays.push_back(this); }
+    UIElementArray(bool orientation, int spacing) { VerticalStack = orientation; if (VerticalStack) { Spacing_Y = (float) spacing; Spacing_X = 0; } else { Spacing_X = (float) spacing; Spacing_Y = 0; } UIElementArrays.push_back(this); }
+    UIElementArray(bool orientation, int spacing, const std::vector<UIElement*> preset) { VerticalStack = orientation; if (VerticalStack) { Spacing_Y = (float) spacing; Spacing_X = 0; } else { Spacing_X = (float) spacing; Spacing_Y = 0; } Contents = preset; UpdateSpacing(); UIElementArrays.push_back(this); }
     void push_back(UIElement* ui_element) { Contents.push_back(ui_element); UpdateSpacing(); }
     UIElement* operator[](size_t i) { return Contents[i]; }
     const UIElement* operator[](size_t i) const { return Contents[i]; }

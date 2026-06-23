@@ -140,6 +140,15 @@ namespace PengIntShaderStructs {
             return output;
         }
     };
+    void DESTROY_EVERYTHING() {
+        for (LightSource* ls : LIGHTSOURCES) delete ls;
+        LIGHTSOURCES.clear();
+        for (Material* mat : MATERIALS) delete mat;
+        MATERIALS.clear();
+        for (Object* obj : OBJECTS) delete obj;
+        OBJECTS.clear();
+        OBJECTS_SORTED.clear();
+    }
 }
 
 std::vector<PengIntShaderStructs::Material> DeRefMat(std::vector<PengIntShaderStructs::Material*> mat_ptr_vec) {
@@ -265,11 +274,13 @@ protected:
     virtual void OnUpdate_GUI(float dt, float t) { }
     void PreUpdate_UI(float dt, float t) {
         ClearBackground({0, 0, 0, 255});
-        if (IsWindowResized()) {
-            rlUnloadShaderBuffer(cBufferSSBO);
-            cBufferSSBO = rlLoadShaderBuffer(WIDTH*HEIGHT*sizeof(uint32_t), NULL, RL_DYNAMIC_COPY);
-        }
         int sw = WIDTH; int sh = HEIGHT;
+        if (IsWindowResized()) {
+            sw = GetScreenWidth();
+            sh = GetScreenHeight();
+            rlUnloadShaderBuffer(cBufferSSBO);
+            cBufferSSBO = rlLoadShaderBuffer(sw*sh*sizeof(uint32_t), nullptr, RL_DYNAMIC_COPY);
+        }
         GetDataSync();
         rlEnableShader(RotateProgram);
             int vCountLoc = rlGetLocationUniform(RotateProgram, "count");
