@@ -26,9 +26,6 @@ public:
 
 namespace {
     std::filesystem::path CurrentProject_fp;
-    UIElementArray* TopBar_File_OnClickArray;
-    UIElementArray* TopBar_Edit_OnClickArray;
-    UIElementArray* TopBar_VCS_OnClickArray;
     UIElementArray* TopBarArray;
     std::string CompilerPath = "C:\\Program Files\\JetBrains\\CLion 2025.2.4\\bin\\cmake\\win\\x64\\bin\\cmake.exe";
     void LOAD_EVERYTHING() {
@@ -173,6 +170,7 @@ class FillipGameEngineWindow : public Renderer {
         EndDrawing();
     }
     void LoadProjectMenu() {
+        if (WindowShouldClose()) return;
         CLEAR_BACKHROUND = true;
         RESET_UI();
         PengIntShaderStructs::DESTROY_EVERYTHING();
@@ -192,43 +190,47 @@ class FillipGameEngineWindow : public Renderer {
         }
         SetUIScale();
         while (!WindowShouldClose()) {
-            if (UI_LOOP()) { EXIT_APPLICATION = false; break; }
+            float dt = GetFrameTime();
+            if (UI_LOOP(dt, 0)) break;
         }
         RESET_UI();
         LOAD_EVERYTHING();
+        UIElementArray* TopBar_File_OnClickArray;
+        UIElementArray* TopBar_Edit_OnClickArray;
+        UIElementArray* TopBar_VCS_OnClickArray;
         TopBarArray = new UIElementArray(false, 0, {
-            new UITextButton({0, 0, 55, 35}, {255, 255, 255, 255}, 25, {0, 0, 0, 255}, "File", {255, 0, 0, 255}, true, [](UIElement* thisbtn) {
+            new UITextButton({0, 0, 55, 20}, {255, 255, 255, 255}, 15, {0, 0, 0, 255}, "File", {255, 0, 0, 255}, true, [](UIElement* thisbtn) {
                 std::any_cast<UIElementArray*>(thisbtn->SpecialMap["TopBar_File_OnClickArray"])->ToggleVisibility();
                 if ((*std::any_cast<UIElementArray*>(thisbtn->SpecialMap["TopBar_Edit_OnClickArray"]))[0]->Visible) std::any_cast<UIElementArray*>(thisbtn->SpecialMap["TopBar_Edit_OnClickArray"])->ToggleVisibility();
                 if ((*std::any_cast<UIElementArray*>(thisbtn->SpecialMap["TopBar_VCS_OnClickArray"]))[0]->Visible) std::any_cast<UIElementArray*>(thisbtn->SpecialMap["TopBar_VCS_OnClickArray"])->ToggleVisibility();
                 return false;
             }, {}, "File Button (Top Bar)"),
-            new UITextButton({0, 0, 75, 35}, {255, 255, 255, 255}, 25, {0, 0, 0, 255}, "Edit", {0, 0, 255, 255}, true, [](UIElement* thisbtn) {
-                if ((*TopBar_File_OnClickArray)[0]->Visible) TopBar_File_OnClickArray->ToggleVisibility();
-                TopBar_Edit_OnClickArray->ToggleVisibility();
-                if ((*TopBar_VCS_OnClickArray)[0]->Visible) TopBar_VCS_OnClickArray->ToggleVisibility();
+            new UITextButton({0, 0, 75, 20}, {255, 255, 255, 255}, 15, {0, 0, 0, 255}, "Edit", {0, 0, 255, 255}, true, [](UIElement* thisbtn) {
+                if ((*std::any_cast<UIElementArray*>(thisbtn->SpecialMap["TopBar_File_OnClickArray"]))[0]->Visible) std::any_cast<UIElementArray*>(thisbtn->SpecialMap["TopBar_File_OnClickArray"])->ToggleVisibility();
+                std::any_cast<UIElementArray*>(thisbtn->SpecialMap["TopBar_Edit_OnClickArray"])->ToggleVisibility();
+                if ((*std::any_cast<UIElementArray*>(thisbtn->SpecialMap["TopBar_VCS_OnClickArray"]))[0]->Visible) std::any_cast<UIElementArray*>(thisbtn->SpecialMap["TopBar_VCS_OnClickArray"])->ToggleVisibility();
                 return false;
             }, {}, "Edit Button (Top Bar)"),
-            new UITextButton({0, 0, 195, 35}, {255, 255, 255, 255}, 25, {0, 0, 0, 255}, "Version Control", {0, 255, 0, 255}, true, [](UIElement* thisbtn) {
-                if ((*TopBar_File_OnClickArray)[0]->Visible) TopBar_File_OnClickArray->ToggleVisibility();
-                if ((*TopBar_Edit_OnClickArray)[0]->Visible) TopBar_Edit_OnClickArray->ToggleVisibility();
-                TopBar_VCS_OnClickArray->ToggleVisibility();
+            new UITextButton({0, 0, 195, 20}, {255, 255, 255, 255}, 15, {0, 0, 0, 255}, "Version Control", {0, 255, 0, 255}, true, [](UIElement* thisbtn) {
+                if ((*std::any_cast<UIElementArray*>(thisbtn->SpecialMap["TopBar_File_OnClickArray"]))[0]->Visible) std::any_cast<UIElementArray*>(thisbtn->SpecialMap["TopBar_File_OnClickArray"])->ToggleVisibility();
+                if ((*std::any_cast<UIElementArray*>(thisbtn->SpecialMap["TopBar_Edit_OnClickArray"]))[0]->Visible) std::any_cast<UIElementArray*>(thisbtn->SpecialMap["TopBar_Edit_OnClickArray"])->ToggleVisibility();
+                std::any_cast<UIElementArray*>(thisbtn->SpecialMap["TopBar_VCS_OnClickArray"])->ToggleVisibility();
                 return false;
             }, {}, "VCS Button (Top Bar)")
         });
         TopBar_File_OnClickArray = new UIElementArray(true, 0, {
-            new UITextButton({0, 35, 165, 35}, {255, 255, 255, 255}, 25, {0, 0, 0, 255}, "Reload Project", {255, 0, 0, 255}, true, [](UIElement* thisbtn) {
+            new UITextButton({0, 20, 165, 20}, {255, 255, 255, 255}, 15, {0, 0, 0, 255}, "Reload Project", {255, 0, 0, 255}, true, [](UIElement* thisbtn) {
                 PengIntShaderStructs::DESTROY_EVERYTHING();
                 LOAD_EVERYTHING();
                 return false;
             }, {}, "Reload Project Button (File Menu, Top Bar)"),
-            new UITextButton({0, 0, 135, 35}, {255, 255, 255, 255}, 25, {0, 0, 0, 255}, "New Project", {255, 0, 0, 255}, true, [](UIElement* thisbtn) { return false; }, {}, "New Project Button (File Menu, Top Bar)"),
-            new UITextButton({0, 0, 145, 35}, {255, 255, 255, 255}, 25, {0, 0, 0, 255}, "Load Project", {255, 0, 0, 255}, true, [](UIElement* thisbtn) { return true; }, {}, "Load Project Button (File Menu, Top Bar)"),
-            new UITextButton({0, 0, 175, 35}, {255, 255, 255, 255}, 25, {0, 0, 0, 255}, "Compile Project", {255, 0, 0, 255}, true, [](UIElement* thisbtn) {
+            new UITextButton({0, 0, 135, 20}, {255, 255, 255, 255}, 15, {0, 0, 0, 255}, "New Project", {255, 0, 0, 255}, true, [](UIElement* thisbtn) { return false; }, {}, "New Project Button (File Menu, Top Bar)"),
+            new UITextButton({0, 0, 145, 20}, {255, 255, 255, 255}, 15, {0, 0, 0, 255}, "Load Project", {255, 0, 0, 255}, true, [](UIElement* thisbtn) { return true; }, {}, "Load Project Button (File Menu, Top Bar)"),
+            new UITextButton({0, 0, 175, 20}, {255, 255, 255, 255}, 15, {0, 0, 0, 255}, "Compile Project", {255, 0, 0, 255}, true, [](UIElement* thisbtn) {
                 Compile();
                 return false;
             }, {}, "Compile Project Button (File Menu, Top Bar)"),
-            new UITextButton({0, 0, 175, 35}, {255, 255, 255, 255}, 25, {0, 0, 0, 255}, "Compile Project and Execute", {255, 0, 0, 255}, true, [](UIElement* thisbtn) {
+            new UITextButton({0, 0, 175, 20}, {255, 255, 255, 255}, 15, {0, 0, 0, 255}, "Compile Project and Execute", {255, 0, 0, 255}, true, [](UIElement* thisbtn) {
                 Compile();
                 std::filesystem::path ProjectAbsPath = std::filesystem::current_path() / std::any_cast<std::filesystem::path>(thisbtn->SpecialMap["CurrentProject_fp"]);
                 #if defined(_WIN32)
@@ -241,28 +243,38 @@ class FillipGameEngineWindow : public Renderer {
                 else std::cerr << "Error: Execution failed." << std::endl;
                 return false;
             }, {{"CurrentProject_fp", CurrentProject_fp}}, "Compile Project and Execute Button (File Menu, Top Bar)"),
-            new UITextButton({0, 0, 95, 35}, {255, 255, 255, 255}, 25, {0, 0, 0, 255}, "Settings", {255, 0, 0, 255}, true, [](UIElement* thisbtn) { return false; }, {}, "Settings Button (File Menu, Top Bar)"),
+            new UITextButton({0, 0, 95, 20}, {255, 255, 255, 255}, 15, {0, 0, 0, 255}, "Settings", {255, 0, 0, 255}, true, [](UIElement* thisbtn) { return false; }, {}, "Settings Button (File Menu, Top Bar)"),
         });
         TopBar_File_OnClickArray->ToggleVisibility();
         TopBar_Edit_OnClickArray = new UIElementArray(true, 0, {
-            new UITextButton({0, 35, 75, 35}, {255, 255, 255, 255}, 25, {0, 0, 0, 255}, "Search", {0, 0, 255, 255}, true, [](UIElement* thisbtn) { return false; }, {}, "Search Button (Edit Menu, Top Bar)"),
-            new UITextButton({0, 0, 45, 35}, {255, 255, 255, 255}, 25, {0, 0, 0, 255}, "Cut", {0, 0, 255, 255}, true, [](UIElement* thisbtn) { return false; }, {}, "Cut Button (Edit Menu, Top Bar)"),
-            new UITextButton({0, 0, 55, 35}, {255, 255, 255, 255}, 25, {0, 0, 0, 255}, "Copy", {0, 0, 255, 255}, true, [](UIElement* thisbtn) { return false; }, {}, "Copy Button (Edit Menu, Top Bar)"),
-            new UITextButton({0, 0, 65, 35}, {255, 255, 255, 255}, 25, {0, 0, 0, 255}, "Paste", {0, 0, 255, 255}, true, [](UIElement* thisbtn) { return false; }, {}, "Paste Button (Edit Menu, Top Bar)"),
+            new UITextButton({0, 20, 75, 20}, {255, 255, 255, 255}, 15, {0, 0, 0, 255}, "Search", {0, 0, 255, 255}, true, [](UIElement* thisbtn) { return false; }, {}, "Search Button (Edit Menu, Top Bar)"),
+            new UITextButton({0, 0, 45, 20}, {255, 255, 255, 255}, 15, {0, 0, 0, 255}, "Cut", {0, 0, 255, 255}, true, [](UIElement* thisbtn) { return false; }, {}, "Cut Button (Edit Menu, Top Bar)"),
+            new UITextButton({0, 0, 55, 20}, {255, 255, 255, 255}, 15, {0, 0, 0, 255}, "Copy", {0, 0, 255, 255}, true, [](UIElement* thisbtn) { return false; }, {}, "Copy Button (Edit Menu, Top Bar)"),
+            new UITextButton({0, 0, 65, 20}, {255, 255, 255, 255}, 15, {0, 0, 0, 255}, "Paste", {0, 0, 255, 255}, true, [](UIElement* thisbtn) { return false; }, {}, "Paste Button (Edit Menu, Top Bar)"),
         });
         TopBar_Edit_OnClickArray->ToggleVisibility();
         TopBar_VCS_OnClickArray = new UIElementArray(true, 0, {
-            new UITextButton({0, 35, 75, 35}, {255, 255, 255, 255}, 25, {0, 0, 0, 255}, "Commit", {0, 255, 0, 255}, true, [](UIElement* thisbtn) { return false; }, {}, "Commit Button (VCS Menu, Top Bar)"),
-            new UITextButton({0, 0, 55, 35}, {255, 255, 255, 255}, 25, {0, 0, 0, 255}, "Push", {0, 255, 0, 255}, true, [](UIElement* thisbtn) { return false; }, {}, "Push Button (VCS Menu, Top Bar)"),
-            new UITextButton({0, 0, 55, 35}, {255, 255, 255, 255}, 25, {0, 0, 0, 255}, "Pull", {0, 255, 0, 255}, true, [](UIElement* thisbtn) { return false; }, {}, "Pull Button (VCS Menu, Top Bar)"),
-            new UITextButton({0, 0, 105, 35}, {255, 255, 255, 255}, 25, {0, 0, 0, 255}, "Configure", {0, 255, 0, 255}, true, [](UIElement* thisbtn) { return false; }, {}, "Configure Button (VCS Menu, Top Bar)"),
+            new UITextButton({0, 20, 75, 20}, {255, 255, 255, 255}, 15, {0, 0, 0, 255}, "Commit", {0, 255, 0, 255}, true, [](UIElement* thisbtn) { return false; }, {}, "Commit Button (VCS Menu, Top Bar)"),
+            new UITextButton({0, 0, 55, 20}, {255, 255, 255, 255}, 15, {0, 0, 0, 255}, "Push", {0, 255, 0, 255}, true, [](UIElement* thisbtn) { return false; }, {}, "Push Button (VCS Menu, Top Bar)"),
+            new UITextButton({0, 0, 55, 20}, {255, 255, 255, 255}, 15, {0, 0, 0, 255}, "Pull", {0, 255, 0, 255}, true, [](UIElement* thisbtn) { return false; }, {}, "Pull Button (VCS Menu, Top Bar)"),
+            new UITextButton({0, 0, 105, 20}, {255, 255, 255, 255}, 15, {0, 0, 0, 255}, "Configure", {0, 255, 0, 255}, true, [](UIElement* thisbtn) { return false; }, {}, "Configure Button (VCS Menu, Top Bar)"),
         });
         TopBar_VCS_OnClickArray->ToggleVisibility();
         std::unordered_map<std::string, std::any> OnClickArray_SpecialMap = {{"TopBar_File_OnClickArray", TopBar_File_OnClickArray}, {"TopBar_Edit_OnClickArray", TopBar_Edit_OnClickArray}, {"TopBar_VCS_OnClickArray", TopBar_VCS_OnClickArray}};
         (*TopBarArray)[0]->SpecialMap = OnClickArray_SpecialMap;
         (*TopBarArray)[1]->SpecialMap = OnClickArray_SpecialMap;
         (*TopBarArray)[2]->SpecialMap = OnClickArray_SpecialMap;
-        if (!EXIT_APPLICATION) EXIT_TO_MENU = true;
+
+        UIElementArrayScrolling* Explorer = new UIElementArrayScrolling(true, 0, new UIElement({0, 400, 100, 400}, {0, 0, 0, 255}, {255, 255, 255, 255}, {}, "File Explorer Background"));
+        Explorer->push_back(new UIElement({0, 400, 105, 20}, {0, 255, 255, 255}, {255, 0, 0, 255}, {}, "test_elem"));
+
+        if (!WindowShouldClose()) EXIT_TO_MENU = true;
+        else {
+            delete TopBar_File_OnClickArray;
+            delete TopBar_Edit_OnClickArray;
+            delete TopBar_VCS_OnClickArray;
+            delete Explorer;
+        }
         CLEAR_BACKHROUND = false;
         SetUIScale();
         IS_UI_ALREADY_SCALED = true;
@@ -293,42 +305,34 @@ class FillipGameEngineWindow : public Renderer {
         LoadProjectMenu();
     }
     void LateRun() override {
-        (*TopBar_File_OnClickArray)[0]->POS.x = (*TopBarArray)[0]->POS.x;
-        TopBar_File_OnClickArray->UpdateSpacing();
-        (*TopBar_Edit_OnClickArray)[0]->POS.x = (*TopBarArray)[1]->POS.x;
-        TopBar_Edit_OnClickArray->UpdateSpacing();
-        (*TopBar_VCS_OnClickArray)[0]->POS.x = (*TopBarArray)[2]->POS.x;
-        TopBar_VCS_OnClickArray->UpdateSpacing();
+        (*std::any_cast<UIElementArray*>((*TopBarArray)[0]->SpecialMap["TopBar_File_OnClickArray"]))[0]->POS.x = (*TopBarArray)[0]->POS.x;
+        std::any_cast<UIElementArray*>((*TopBarArray)[0]->SpecialMap["TopBar_File_OnClickArray"])->UpdateSpacing();
+        (*std::any_cast<UIElementArray*>((*TopBarArray)[0]->SpecialMap["TopBar_Edit_OnClickArray"]))[0]->POS.x = (*TopBarArray)[1]->POS.x;
+        std::any_cast<UIElementArray*>((*TopBarArray)[0]->SpecialMap["TopBar_Edit_OnClickArray"])->UpdateSpacing();
+        (*std::any_cast<UIElementArray*>((*TopBarArray)[0]->SpecialMap["TopBar_VCS_OnClickArray"]))[0]->POS.x = (*TopBarArray)[2]->POS.x;
+        std::any_cast<UIElementArray*>((*TopBarArray)[0]->SpecialMap["TopBar_VCS_OnClickArray"])->UpdateSpacing();
     }
     virtual void Fillip_OnRun() {}
     virtual void Fillip_OnUpdate(float dt, float t) {}
     void OnUpdate_GUI(float dt, float t) override {
-        if (IsWindowResized()) {
-            (*TopBar_File_OnClickArray)[0]->POS.x = (*TopBarArray)[0]->POS.x;
-            TopBar_File_OnClickArray->UpdateSpacing();
-            (*TopBar_Edit_OnClickArray)[0]->POS.x = (*TopBarArray)[1]->POS.x;
-            TopBar_Edit_OnClickArray->UpdateSpacing();
-            (*TopBar_VCS_OnClickArray)[0]->POS.x = (*TopBarArray)[2]->POS.x;
-            TopBar_VCS_OnClickArray->UpdateSpacing();
-        }
         Vector2 MouseM = GetMouseDelta();
         float mvtmult = 1;
         if (IsKeyDown(KEY_LEFT_SHIFT)) mvtmult = 2;
         if (IsKeyDown(KEY_W)) {
-            CameraPosition[2] += mvtmult*2*dt*cos(CameraYaw);
-            CameraPosition[0] -= mvtmult*2*dt*sin(CameraYaw);
+            CameraPosition[2] += mvtmult*2*dt*cosf(CameraYaw);
+            CameraPosition[0] -= mvtmult*2*dt*sinf(CameraYaw);
         }
         if (IsKeyDown(KEY_A)) {
-            CameraPosition[2] -= mvtmult*2*dt*sin(CameraYaw);
-            CameraPosition[0] -= mvtmult*2*dt*cos(CameraYaw);
+            CameraPosition[2] -= mvtmult*2*dt*sinf(CameraYaw);
+            CameraPosition[0] -= mvtmult*2*dt*cosf(CameraYaw);
         }
         if (IsKeyDown(KEY_S)) {
-            CameraPosition[2] -= mvtmult*2*dt*cos(CameraYaw);
-            CameraPosition[0] += mvtmult*2*dt*sin(CameraYaw);
+            CameraPosition[2] -= mvtmult*2*dt*cosf(CameraYaw);
+            CameraPosition[0] += mvtmult*2*dt*sinf(CameraYaw);
         }
         if (IsKeyDown(KEY_D)) {
-            CameraPosition[2] += mvtmult*2*dt*sin(CameraYaw);
-            CameraPosition[0] += mvtmult*2*dt*cos(CameraYaw);
+            CameraPosition[2] += mvtmult*2*dt*sinf(CameraYaw);
+            CameraPosition[0] += mvtmult*2*dt*cosf(CameraYaw);
         }
         if (IsKeyDown(KEY_Q)) CameraPosition[1] -= mvtmult*2*dt;
         if (IsKeyDown(KEY_E)) CameraPosition[1] += mvtmult*2*dt;
@@ -344,8 +348,18 @@ class FillipGameEngineWindow : public Renderer {
         else if (CameraYaw < -std::numbers::pi) CameraYaw += 2*std::numbers::pi;
         Fillip_OnUpdate(dt, t);
     }
+    void LateUpdate_UI(float dt, float t) override {
+        if (IsWindowResized()) {
+            (*std::any_cast<UIElementArray*>((*TopBarArray)[0]->SpecialMap["TopBar_File_OnClickArray"]))[0]->POS.x = (*TopBarArray)[0]->POS.x;
+            std::any_cast<UIElementArray*>((*TopBarArray)[0]->SpecialMap["TopBar_File_OnClickArray"])->UpdateSpacing();
+            (*std::any_cast<UIElementArray*>((*TopBarArray)[0]->SpecialMap["TopBar_Edit_OnClickArray"]))[0]->POS.x = (*TopBarArray)[1]->POS.x;
+            std::any_cast<UIElementArray*>((*TopBarArray)[0]->SpecialMap["TopBar_Edit_OnClickArray"])->UpdateSpacing();
+            (*std::any_cast<UIElementArray*>((*TopBarArray)[0]->SpecialMap["TopBar_VCS_OnClickArray"]))[0]->POS.x = (*TopBarArray)[2]->POS.x;
+            std::any_cast<UIElementArray*>((*TopBarArray)[0]->SpecialMap["TopBar_VCS_OnClickArray"])->UpdateSpacing();
+        }
+    }
     void OnEnd() override {
-        if (EXIT_TO_MENU && !EXIT_APPLICATION) LoadProjectMenu();
+        if (EXIT_TO_MENU && !WindowShouldClose()) LoadProjectMenu();
         else { RESET_UI(); PengIntShaderStructs::DESTROY_EVERYTHING(); }
     }
 public:

@@ -13,6 +13,7 @@
 #define GRAPHICS_API_OPENGL_43
 
 #include "PengInt_UIL.hpp"
+#include "PengInt_UIL.hpp"
 #include "raylib.h"
 #include "rlgl.h"
 #include "external/glad.h"
@@ -30,9 +31,10 @@ public:
     Color OUTLINE;
     std::string Identifier;
     bool Visible;
-    UIElement() : POS({0, 0}), SIZE({0, 0}), COL({0, 0, 0, 0}) { Identifier = ""; SpecialMap = {}; }
-private: void Setup(Color& c, Color& outline, const std::unordered_map<std::string, std::any>& spec_map) { UIElements.push_back(this); COL = c; OUTLINE = outline; Identifier = ""; Visible = true; SpecialMap = spec_map; }
-    void Setup(std::string& id, Color& c, Color& outline, const std::unordered_map<std::string, std::any>& spec_map) { UIElements.push_back(this); COL = c; OUTLINE = outline; Identifier = id; Visible = true; SpecialMap = spec_map; }
+    Vector4 BoundingRect;
+    UIElement() : POS({0, 0}), SIZE({0, 0}), COL({0, 0, 0, 0}) { Identifier = ""; SpecialMap = {}; BoundingRect = {0, 0, 0, 0}; }
+private: void Setup(Color& c, Color& outline, const std::unordered_map<std::string, std::any>& spec_map) { UIElements.push_back(this); COL = c; OUTLINE = outline; Identifier = ""; Visible = true; SpecialMap = spec_map; BoundingRect = {0, 0, 0, 0}; }
+    void Setup(std::string& id, Color& c, Color& outline, const std::unordered_map<std::string, std::any>& spec_map) { UIElements.push_back(this); COL = c; OUTLINE = outline; Identifier = id; Visible = true; SpecialMap = spec_map; BoundingRect = {0, 0, 0, 0}; }
 public:
     UIElement(Vector2 p, Vector2 s, Color c, Color outline, const std::unordered_map<std::string, std::any> spec_map, std::string id) : POS(p), SIZE(s) { Setup(id, c, outline, spec_map); }
     UIElement(float x, float y, float w, float h, Color c, Color outline, const std::unordered_map<std::string, std::any> spec_map, std::string id) : POS({x, y}), SIZE({w, h}) { Setup(id, c, outline, spec_map); }
@@ -50,6 +52,10 @@ public:
         POS.y *= scale_y;
         SIZE.x *= scale_x;
         SIZE.y *= scale_y;
+        BoundingRect.x *= scale_x;
+        BoundingRect.y *= scale_y;
+        BoundingRect.z *= scale_x;
+        BoundingRect.w *= scale_y;
     }
 };
 
@@ -144,7 +150,7 @@ public:
         TextSize *= scale_y;
         if (AdjustBoxWidth) {
             Vector2 TextVector2 = MeasureTextEx(Roboto_Mono, Contents.c_str(), TextSize, 0);
-            SIZE.x = TextVector2.x+10;
+            SIZE.x = TextVector2.x+TextSize/3.0f;
         }
     }
 };
@@ -177,7 +183,7 @@ public:
         TextSize *= scale_y;
         if (AdjustBoxWidth) {
             Vector2 TextVector2 = MeasureTextEx(Roboto_Mono, Contents.c_str(), TextSize, 0);
-            SIZE.x = TextVector2.x+10;
+            SIZE.x = TextVector2.x+0.4f*TextSize;
         }
     }
 };
@@ -216,10 +222,10 @@ public:
     const UIElement* operator[](size_t i) const { return Contents[i]; }
     int size() { return Contents.size(); }
 };
-
 class UIElementArrayCentered : public UIElementArray {
     Vector2 Center;
-    UIElementArrayCentered(const UIElementArray* elem_array, const Vector2 center) : UIElementArray(*elem_array) { Center = center; }
+    UIElementArrayCentered(bool orientation, int spacing, const Vector2 center) : UIElementArray(orientation, spacing) { Center = center; }
+    UIElementArrayCentered(bool orientation, int spacing, const std::vector<UIElement*> preset, const Vector2 center) : UIElementArray(orientation, spacing, preset) { Center = center; }
     void UpdateCenter() {
         if (size() == 0) return;
         UpdateSpacing();
@@ -239,13 +245,30 @@ class UIElementArrayCentered : public UIElementArray {
         UpdateSpacing();
     }
 };
+class UIElementArrayScrolling;
+std::vector<UIElementArrayScrolling*> UIElementArrayScrollings;
+class UIElementArrayScrolling : public UIElementArray {
+    float Offset;
+public:
+    UIElement* BoundingBox;
+    void UpdateBoundingBox() const { for (UIElement* e : Contents) e->BoundingRect = {BoundingBox->POS.x, BoundingBox->POS.y, BoundingBox->SIZE.x, BoundingBox->SIZE.y}; }
+    UIElementArrayScrolling(bool orientation, int spacing, UIElement* bg) : UIElementArray(orientation, spacing) { BoundingBox = bg; Offset = 0; UpdateBoundingBox(); UIElementArrayScrollings.push_back(this); }
+    UIElementArrayScrolling(bool orientation, int spacing, const std::vector<UIElement*> preset, UIElement* bg) : UIElementArray(orientation, spacing, preset) { BoundingBox = bg; Offset = 0; UpdateBoundingBox(); UIElementArrayScrollings.push_back(this); }
+    void OnScroll(float amount) {
+        float true_amount = amount;
+        Offset += amount;
+        if (Offset > 0) { true_amount -= Offset; Offset = 0; }
+        if (VerticalStack) for (UIElement* e : Contents) e->POS.y += true_amount;
+        else for (UIElement* e : Contents) e->POS.x += true_amount;
+    }
+    void push_back(UIElement* ui_element) { Contents.push_back(ui_element); UpdateSpacing(); UpdateBoundingBox(); }
+};
 
 class Window {
 public:
     uint16_t WIDTH, HEIGHT;
     bool CLEAR_BACKHROUND;
     bool EXIT_TO_MENU = true;
-    bool EXIT_APPLICATION = false;
     bool IS_UI_ALREADY_SCALED = false;
     Window(uint16_t w, uint16_t h) : WIDTH(w), HEIGHT(h) {
         SetConfigFlags(FLAG_WINDOW_RESIZABLE);
@@ -269,7 +292,8 @@ protected:
     virtual void OnEnd() { }
     virtual void OnUpdate_UI(float dt, float t) { }
     virtual void PreUpdate_UI(float dt, float t) { }
-    bool UI_LOOP() {
+    virtual void LateUpdate_UI(float dt, float t) {}
+    bool UI_LOOP(float dt, float t) {
         EXIT_TO_MENU = false;
         if (IsWindowResized()) {
             int newWidth = GetScreenWidth();
@@ -281,13 +305,22 @@ protected:
         }
         if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
             Vector2 c_pos = GetMousePosition();
-            for (UIButton* btn : UIButtons) if (c_pos.x > btn->POS.x && c_pos.y > btn->POS.y && c_pos.x < btn->POS.x+btn->SIZE.x && c_pos.y < btn->POS.y+btn->SIZE.y && btn->Visible) { if (btn->OnClick()) { EXIT_APPLICATION = false; return true; } break; }
+            for (UIButton* btn : UIButtons) if (c_pos.x > btn->POS.x && c_pos.y > btn->POS.y && c_pos.x < btn->POS.x+btn->SIZE.x && c_pos.y < btn->POS.y+btn->SIZE.y && btn->Visible) { if (btn->OnClick()) return true; break; }
         }
+        if (GetMouseWheelMove() != 0) {
+            Vector2 c_pos = GetMousePosition();
+            for (UIElementArrayScrolling* eas : UIElementArrayScrollings) if (c_pos.x > eas->BoundingBox->POS.x && c_pos.y > eas->BoundingBox->POS.y && c_pos.x < eas->BoundingBox->POS.x+eas->BoundingBox->SIZE.x && c_pos.y < eas->BoundingBox->POS.y+eas->BoundingBox->SIZE.y && eas->BoundingBox->Visible) eas->OnScroll(GetMouseWheelMove()*10);
+        }
+        LateUpdate_UI(dt, t);
         BeginDrawing();
         if (CLEAR_BACKHROUND) ClearBackground(BLACK);
-        for (UIElement* e : UIElements) if (e->Visible) e->Draw();
+        for (UIElement* e : UIElements) if (e->Visible) {
+            if (e->BoundingRect.z > 0 && e->BoundingRect.w > 0) BeginScissorMode(e->BoundingRect.x, e->BoundingRect.y, e->BoundingRect.z, e->BoundingRect.w);
+            e->Draw();
+            if (e->BoundingRect.z > 0 && e->BoundingRect.w > 0) EndScissorMode();
+            //DrawRectangle(0, 400, 105, 400, {255, 255, 0, 255});
+        }
         EndDrawing();
-        EXIT_APPLICATION = true;
         return false;
     }
     void RESET_UI() {
@@ -295,15 +328,16 @@ protected:
         UIElements.clear();
         for (UIElementArray* ea : UIElementArrays) delete ea;
         UIElementArrays.clear();
+        UIElementArrayScrollings.clear();
         UIButtons.clear();
     }
     void SetUIScale() const {
-        for (UIElement* e : UIElements) e->UpdateSize_RelativeScreenSize(((float) WIDTH)/2560.0f, ((float) HEIGHT)/1440.0f);
-        for (UIElementArray* ea : UIElementArrays) ea->UpdateSize_RelativeScreenSize(((float) WIDTH)/2560.0f, ((float) HEIGHT)/1440.0f);
+        for (UIElement* e : UIElements) e->UpdateSize_RelativeScreenSize(((float) WIDTH)/800.0f, ((float) HEIGHT)/800.0f);
+        for (UIElementArray* ea : UIElementArrays) ea->UpdateSize_RelativeScreenSize(((float) WIDTH)/800.0f, ((float) HEIGHT)/800.0f);
     }
     void SetUIScale(const std::vector<int> element_indices, const std::vector<int> elementArray_indices) {
-        for (int i : element_indices) UIElements[i]->UpdateSize_RelativeScreenSize(((float) WIDTH)/2560.0f, ((float) HEIGHT)/1440.0f);
-        for (int i : elementArray_indices) UIElementArrays[i]->UpdateSize_RelativeScreenSize(((float) WIDTH)/2560.0f, ((float) HEIGHT)/1440.0f);
+        for (int i : element_indices) UIElements[i]->UpdateSize_RelativeScreenSize(((float) WIDTH)/800.0f, ((float) HEIGHT)/800.0f);
+        for (int i : elementArray_indices) UIElementArrays[i]->UpdateSize_RelativeScreenSize(((float) WIDTH)/800.0f, ((float) HEIGHT)/800.0f);
     }
 public:
     void Run() {
@@ -312,11 +346,11 @@ public:
         HEIGHT = GetScreenHeight();
         if (!IS_UI_ALREADY_SCALED) SetUIScale();
         LateRun();
-        while (EXIT_TO_MENU && !EXIT_APPLICATION) {
+        while (EXIT_TO_MENU && !WindowShouldClose()) {
             while (!WindowShouldClose()) {
                 float dt = GetFrameTime();
                 PreUpdate_UI(dt, 0);
-                if (UI_LOOP()) { EXIT_TO_MENU = true; break; }
+                if (UI_LOOP(dt, 0)) { EXIT_TO_MENU = true; break; }
                 OnUpdate_UI(dt, 0);
             }
             OnEnd();
