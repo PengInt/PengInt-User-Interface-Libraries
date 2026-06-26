@@ -266,8 +266,6 @@ class FillipGameEngineWindow : public Renderer {
         (*TopBarArray)[2]->SpecialMap = OnClickArray_SpecialMap;
 
         UIElementArrayScrolling* Explorer = new UIElementArrayScrolling(true, 0, new UIElement({0, 400, 100, 400}, {0, 0, 0, 255}, {255, 255, 255, 255}, {}, "File Explorer Background"));
-        Explorer->push_back(new UIElement({0, 400, 105, 20}, {0, 255, 255, 255}, {255, 0, 0, 255}, {}, "test_elem"));
-
         if (!WindowShouldClose()) EXIT_TO_MENU = true;
         else {
             delete TopBar_File_OnClickArray;
