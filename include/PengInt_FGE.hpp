@@ -25,6 +25,8 @@ public:
 };
 
 namespace {
+    int __debug_count = 0;
+    void Debug(const std::string what) { std::cout << "FGE DEBUG [ID " << __debug_count << "]: " << what << std::endl; }
     std::filesystem::path CurrentProject_fp;
     UIElementArray* TopBarArray;
     std::string CompilerPath = "C:\\Program Files\\JetBrains\\CLion 2025.2.4\\bin\\cmake\\win\\x64\\bin\\cmake.exe";
@@ -133,7 +135,7 @@ namespace {
         std::filesystem::path ProjectAbsPath = std::filesystem::current_path() / CurrentProject_fp;
         std::string proj_dir = ProjectAbsPath.string();
         std::string build_dir = (ProjectAbsPath / "Compiled Projects").string();
-        std::cout << "Config (CMake) for: " << proj_dir << std::endl;
+        Debug("Config (CMake) for: " + proj_dir);
         #if defined(_WIN32)
             std::string cfg_cmd = cmake_exe + " -S \"" + proj_dir + "\" -B \"" + build_dir + "\"\"";
         #elif defined(__linux__)
@@ -144,7 +146,7 @@ namespace {
             std::cerr << "Error: Config (CMake) failed!" << std::endl;
             return;
         }
-        std::cout << "Config (CMake) successful! \nStarting compilation." << std::endl;
+        Debug("Config (CMake) successful! \nStarting compilation.");
         #if defined(_WIN32)
             std::string build_cmd = cmake_exe + " --build \"" + build_dir + "\" --config Release\"";
         #elif defined(__linux__)
@@ -154,6 +156,30 @@ namespace {
         if (build_result == 0) std::cout << "Compilation Successful!"<< std::endl;
         else std::cerr << "Error: Compilation failed during build." << std::endl;
         CopyAssets();
+    }
+    void DestroyUIElements(std::vector<UIElement*>& remove) {
+        for (UIElement* ptr : remove) delete ptr;
+        std::erase_if(UIElements, [&remove](UIElement* ptr) {
+            return std::find(remove.begin(), remove.end(), ptr) != remove.end();
+        });
+        std::erase_if(UIButtons, [&remove](UIElement* ptr) {
+            return std::find(remove.begin(), remove.end(), ptr) != remove.end();
+        });
+        remove.clear();
+    }
+    void LoadExplorerContents(UIElementArrayScrolling* Explorer) {
+        try {
+            DestroyUIElements(Explorer->Contents);
+            if (std::filesystem::exists(CurrentProject_fp) && std::filesystem::is_directory(CurrentProject_fp)) {
+                for (const auto& entry : std::filesystem::directory_iterator(CurrentProject_fp)) {
+                    if (entry.exists()) Explorer->push_back(new UITextButton({0, 400, 200, 20}, {255, 255, 255, 255}, 25, {0, 0, 0, 0}, entry.path().filename().string(), {0, 0, 0, 0}, true, [](UIElement* thisbtn) {
+                        return false;
+                    }, {{"CurrentProject_fp", CurrentProject_fp}, {"Explorer", Explorer}}, "Explorer Element - " + entry.path().filename().string()));
+                }
+            } else std::cerr << "Specified path does not exist: " << CurrentProject_fp.string() << std::endl;
+        } catch (const std::filesystem::filesystem_error& e) {
+            std::cerr << "Filesystem error: " << e.what() << std::endl;
+        }
     }
 }
 
@@ -265,7 +291,9 @@ class FillipGameEngineWindow : public Renderer {
         (*TopBarArray)[1]->SpecialMap = OnClickArray_SpecialMap;
         (*TopBarArray)[2]->SpecialMap = OnClickArray_SpecialMap;
 
-        UIElementArrayScrolling* Explorer = new UIElementArrayScrolling(true, 0, new UIElement({0, 400, 100, 400}, {0, 0, 0, 255}, {255, 255, 255, 255}, {}, "File Explorer Background"));
+        UIElementArrayScrolling* Explorer = new UIElementArrayScrolling(true, 0, new UIElement({0, 400, 200, 400}, {0, 0, 0, 255}, {255, 255, 255, 255}, {}, "File Explorer Background"));
+        LoadExplorerContents(Explorer);
+
         if (!WindowShouldClose()) EXIT_TO_MENU = true;
         else {
             delete TopBar_File_OnClickArray;

@@ -147,6 +147,10 @@ public:
         POS.y *= scale_y;
         SIZE.x *= scale_x;
         SIZE.y *= scale_y;
+        BoundingRect.x *= scale_x;
+        BoundingRect.y *= scale_y;
+        BoundingRect.z *= scale_x;
+        BoundingRect.w *= scale_y;
         TextSize *= scale_y;
         if (AdjustBoxWidth) {
             Vector2 TextVector2 = MeasureTextEx(Roboto_Mono, Contents.c_str(), TextSize, 0);
@@ -180,6 +184,10 @@ public:
         POS.y *= scale_y;
         SIZE.x *= scale_x;
         SIZE.y *= scale_y;
+        BoundingRect.x *= scale_x;
+        BoundingRect.y *= scale_y;
+        BoundingRect.z *= scale_x;
+        BoundingRect.w *= scale_y;
         TextSize *= scale_y;
         if (AdjustBoxWidth) {
             Vector2 TextVector2 = MeasureTextEx(Roboto_Mono, Contents.c_str(), TextSize, 0);
