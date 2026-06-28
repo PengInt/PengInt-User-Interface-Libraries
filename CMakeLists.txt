@@ -35,9 +35,23 @@ if (NOT rapidjson_POPULATED)
     target_include_directories(PengInt_GraphicsLibraries PRIVATE "${rapidjson_SOURCE_DIR}/include")
 endif()
 
-target_link_libraries(PengInt_GraphicsLibraries
-    raylib
-    opengl32
-    gdi32
-    winmm
-)
+if (WIN32)
+    target_link_libraries(PengInt_GraphicsLibraries
+        raylib
+        opengl32
+        gdi32
+        winmm
+    )
+else()
+    target_link_libraries(PengInt_GraphicsLibraries
+        raylib
+        GL
+        X11
+        Xrandr
+        Xinerama
+        Xcursor
+        Xi
+        pthread
+        dl
+    )
+endif()
