@@ -30,9 +30,27 @@ if (NOT rapidjson_POPULATED)
     target_include_directories(${PROJECT_NAME} PRIVATE "${rapidjson_SOURCE_DIR}/include")
 endif()
 
-target_link_libraries(${PROJECT_NAME}
-    raylib
-    opengl32
-    gdi32
-    winmm
+set_target_properties(UserProject PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/Release"
 )
+
+if (WIN32)
+    target_link_libraries(UserProject
+        raylib
+        opengl32
+        gdi32
+        winmm
+    )
+else()
+    target_link_libraries(UserProject
+        raylib
+        GL
+        X11
+        Xrandr
+        Xinerama
+        Xcursor
+        Xi
+        pthread
+        dl
+    )
+endif()

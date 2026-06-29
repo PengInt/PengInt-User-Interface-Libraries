@@ -5,6 +5,9 @@
 #include <chrono>
 #include <cstdlib>
 #include <filesystem>
+#include <array>
+#include <memory>
+#include <fstream>
 
 #include "PengInt_R-GUIL.hpp"
 
@@ -26,10 +29,60 @@ public:
 
 namespace {
     int __debug_count = 0;
-    void Debug(const std::string what) { std::cout << "FGE DEBUG [ID " << __debug_count << "]: " << what << std::endl; }
+    void Debug(const std::string what) { std::cout << "FGE DEBUG [ID " << __debug_count << "]: " << what << std::endl; __debug_count++; }
     std::filesystem::path CurrentProject_fp;
-    UIElementArray* TopBarArray;
     std::string CompilerPath = "C:\\Program Files\\JetBrains\\CLion 2025.2.4\\bin\\cmake\\win\\x64\\bin\\cmake.exe";
+    std::string run_cmd(const std::string& cmd) {
+        std::array<char, 128> buf;
+        std::string res;
+        #if defined(_WIN32)
+            std::unique_ptr<FILE, decltype(&_pclose)> pipe(_popen(cmd.c_str(), "r"), _pclose);
+        #else
+            std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd.c_str(), "r"), pclose);
+        #endif
+        if (!pipe) return "";
+        while (fgets(buf.data(), buf.size(), pipe.get()) != nullptr) {
+            res += buf.data();
+        }
+        if (!res.empty() && res.back() == '\n') res.pop_back();
+        if (!res.empty() && res.back() == '\r') res.pop_back();
+        return res;
+    }
+    void AutodetectCompiler() {
+        if (const char* cxx_env = std::getenv("CXX")) if (std::filesystem::exists(cxx_env)) { Debug("Compiler path auto-detected in Environment Variables: " + std::string(cxx_env)); CompilerPath = cxx_env; return; }
+        #if defined(_WIN32)
+            std::vector<std::string> compilers = {"g++.exe", "clang++.exe", "cl.exe"};
+        #else
+            std::vector<std::string> compilers = {"g++", "clang++"};
+        #endif
+        for (const std::string& c : compilers) {
+            #if defined(_WIN32)
+                std::string path = run_cmd("where " + c);
+            #else
+                std::string path = run_cmd("which " + c);
+            #endif
+            if (!path.empty() && std::filesystem::exists(path)) { Debug("Compiler path auto-detected in PATH: " + path); std::cout << std::endl; CompilerPath = path; return; }
+        }
+        Debug("No compiler auto-detected, please insert compiler path into [Fillip Variables/compilerpath.txt] to be able to compile your projects.");
+        CompilerPath = "";
+    }
+    void LoadCompiler() {
+        std::filesystem::path txt = std::filesystem::current_path() / "Fillip Variables" / "compilerpath.txt";
+        if (!txt.has_parent_path()) std::filesystem::create_directories(txt.parent_path());
+        std::fstream file(txt, std::ios::in | std::ios::out);
+        if (!file.is_open()) { Debug("Failed to open or create [Fillip Variables/compilerpath.txt] ..."); return; }
+        std::uintmax_t size = std::filesystem::file_size(txt);
+        std::string buf(size, '\0');
+        if (file) file.read(buf.data(), size);
+        file.close();
+        if (std::filesystem::exists(buf)) { CompilerPath = buf; Debug("Compiler path loaded: " + buf); return; }
+        AutodetectCompiler();
+        file.clear();
+        file.open(txt, std::ios::in | std::ios::out | std::ios::trunc);
+        file << CompilerPath;
+        file.close();
+    }
+    UIElementArray* TopBarArray;
     void LOAD_EVERYTHING() {
         std::string f_ext = ".json";
         std::filesystem::path mat_dir = CurrentProject_fp / "Workspace" / "Assets" / "Immediate" / "Materials";
@@ -128,18 +181,22 @@ namespace {
         if (std::filesystem::exists(compiled_dir)) std::filesystem::remove_all(compiled_dir);
         std::filesystem::create_directory(compiled_dir);
         #if defined(_WIN32)
-            std::string cmake_exe = "cmd /c \"\"" + CompilerPath + "\"";
+            std::string cmake_exe = "cmd /c cmake";
         #elif defined(__linux__)
-            std::string cmake_exe = "\"" + CompilerPath + "\"";
+            std::string cmake_exe = "cmake";
         #endif
         std::filesystem::path ProjectAbsPath = std::filesystem::current_path() / CurrentProject_fp;
         std::string proj_dir = ProjectAbsPath.string();
-        std::string build_dir = (ProjectAbsPath / "Compiled Projects").string();
+        #if defined(_WIN32)
+            std::string build_dir = (ProjectAbsPath / "Compiled Projects").string();
+        #else
+            std::string build_dir = (CurrentProject_fp / "Compiled Projects").string();
+        #endif
         Debug("Config (CMake) for: " + proj_dir);
         #if defined(_WIN32)
             std::string cfg_cmd = cmake_exe + " -S \"" + proj_dir + "\" -B \"" + build_dir + "\"\"";
         #elif defined(__linux__)
-            std::string cfg_cmd = cmake_exe + " -S \"" + proj_dir + "\" -B \"" + build_dir + "\"";
+            std::string cfg_cmd = cmake_exe + " -DCMAKE_BUILD_TYPE=Release -S \"" + CurrentProject_fp.string() + "\" -B \"" + build_dir + "\"";
         #endif
         int cfg_result = std::system(cfg_cmd.c_str());
         if (cfg_result != 0) {
@@ -150,12 +207,13 @@ namespace {
         #if defined(_WIN32)
             std::string build_cmd = cmake_exe + " --build \"" + build_dir + "\" --config Release\"";
         #elif defined(__linux__)
-            std::string build_cmd = cmake_exe + " --build \"" + build_dir + "\" --config Release";
+            std::string build_cmd = cmake_exe + " --build \"" + build_dir + "\"";
         #endif
         int build_result = std::system(build_cmd.c_str());
         if (build_result == 0) std::cout << "Compilation Successful!"<< std::endl;
         else std::cerr << "Error: Compilation failed during build." << std::endl;
         CopyAssets();
+        Debug("If any errors occured during the CMake configuration or the building of the project, please remove all contents of [Fillip Variables/compilerpath.txt] or delete the file, or replace its contents with a path towards your C++ compiler.");
     }
     void DestroyUIElements(std::vector<UIElement*>& remove) {
         for (UIElement* ptr : remove) delete ptr;
@@ -167,16 +225,32 @@ namespace {
         });
         remove.clear();
     }
-    void LoadExplorerContents(UIElementArrayScrolling* Explorer) {
+    void LoadExplorerContents(UIElementArrayScrolling* Explorer, bool set_scale) {
         try {
             DestroyUIElements(Explorer->Contents);
-            if (std::filesystem::exists(CurrentProject_fp) && std::filesystem::is_directory(CurrentProject_fp)) {
-                for (const auto& entry : std::filesystem::directory_iterator(CurrentProject_fp)) {
-                    if (entry.exists()) Explorer->push_back(new UITextButton({0, 400, 200, 20}, {255, 255, 255, 255}, 25, {0, 0, 0, 0}, entry.path().filename().string(), {0, 0, 0, 0}, true, [](UIElement* thisbtn) {
-                        return false;
-                    }, {{"CurrentProject_fp", CurrentProject_fp}, {"Explorer", Explorer}}, "Explorer Element - " + entry.path().filename().string()));
+            std::filesystem::path fp = std::any_cast<std::filesystem::path>(Explorer->BoundingBox->SpecialMap["cwd"]);
+            if (std::filesystem::exists(fp) && std::filesystem::is_directory(fp)) {
+                if (!std::filesystem::equivalent(fp, CurrentProject_fp)) Explorer->push_back(new UITextButton({0, 400, 200, 20}, {255, 255, 255, 255}, 25, {0, 0, 0, 0}, "..", {0, 0, 0, 0}, true, [](UIElement* thisbtn) {
+                    UIElementArrayScrolling* ex = std::any_cast<UIElementArrayScrolling*>(thisbtn->SpecialMap["Explorer"]);
+                    ex->BoundingBox->SpecialMap["cwd"] = std::any_cast<std::filesystem::path>(thisbtn->SpecialMap["target"]);
+                    LoadExplorerContents(std::any_cast<UIElementArrayScrolling*>(thisbtn->SpecialMap["Explorer"]), true);
+                    return false;
+                }, {{"Explorer", Explorer}, {"target", (fp/"..").lexically_normal()}}, "Explorer Element - .."));
+                for (const auto& entry : std::filesystem::directory_iterator(fp)) {
+                    if (entry.exists()) {
+                        std::string text;
+                        if (std::filesystem::is_directory(entry)) text = entry.path().filename().string() + "/";
+                        else text = entry.path().filename().string();
+                        Explorer->push_back(new UITextButton({0, 400, 200, 20}, {255, 255, 255, 255}, 25, {0, 0, 0, 0}, text, {0, 0, 0, 0}, true, [](UIElement* thisbtn) {
+                            UIElementArrayScrolling* ex = std::any_cast<UIElementArrayScrolling*>(thisbtn->SpecialMap["Explorer"]);
+                            ex->BoundingBox->SpecialMap["cwd"] = std::any_cast<std::filesystem::path>(thisbtn->SpecialMap["target"]);
+                            LoadExplorerContents(std::any_cast<UIElementArrayScrolling*>(thisbtn->SpecialMap["Explorer"]), true);
+                            return false;
+                        }, {{"Explorer", Explorer}, {"target", entry.path()}}, "Explorer Element - " + text));
+                    }
                 }
-            } else std::cerr << "Specified path does not exist: " << CurrentProject_fp.string() << std::endl;
+                if (set_scale) SetUIScale_Selective(Explorer->Contents);
+            } else std::cerr << "Specified path does not exist or is not a directory: " << fp.string() << std::endl;
         } catch (const std::filesystem::filesystem_error& e) {
             std::cerr << "Filesystem error: " << e.what() << std::endl;
         }
@@ -291,8 +365,8 @@ class FillipGameEngineWindow : public Renderer {
         (*TopBarArray)[1]->SpecialMap = OnClickArray_SpecialMap;
         (*TopBarArray)[2]->SpecialMap = OnClickArray_SpecialMap;
 
-        UIElementArrayScrolling* Explorer = new UIElementArrayScrolling(true, 0, new UIElement({0, 400, 200, 400}, {0, 0, 0, 255}, {255, 255, 255, 255}, {}, "File Explorer Background"));
-        LoadExplorerContents(Explorer);
+        UIElementArrayScrolling* Explorer = new UIElementArrayScrolling(true, 0, new UIElement({0, 400, 200, 400}, {0, 0, 0, 255}, {255, 255, 255, 255}, {{"cwd", CurrentProject_fp}, {"CurrentProject_fp", CurrentProject_fp}}, "File Explorer Background"));
+        LoadExplorerContents(Explorer, false);
 
         if (!WindowShouldClose()) EXIT_TO_MENU = true;
         else {
@@ -306,6 +380,7 @@ class FillipGameEngineWindow : public Renderer {
         IS_UI_ALREADY_SCALED = true;
     }
     void OnRun() override {
+        LoadCompiler();
         std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
         float seconds_left = 1 - std::chrono::duration_cast<std::chrono::seconds>(now-start_time_chrono).count();
         while (!WindowShouldClose()) {
@@ -389,7 +464,7 @@ class FillipGameEngineWindow : public Renderer {
         else { RESET_UI(); PengIntShaderStructs::DESTROY_EVERYTHING(); }
     }
 public:
-    FillipGameEngineWindow() : Renderer(800, 800, "Fillip Game Engine") {
+    FillipGameEngineWindow() : Renderer(400, 300, "Fillip Game Engine") {
         FillipSetup();
     }
     FillipGameEngineWindow(std::string GameName) : Renderer(800, 800, GameName) {

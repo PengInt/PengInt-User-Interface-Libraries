@@ -21,6 +21,11 @@
 
 Font Roboto_Mono;
 
+namespace __UIL {
+    int __debug_count = 0;
+    void Debug(const std::string what) { std::cout << "UIL DEBUG [ID " << __debug_count << "]: " << what << std::endl; __debug_count++; }
+}
+
 class UIElement;
 std::vector<UIElement*> UIElements;
 class UIElement {
@@ -272,12 +277,19 @@ public:
     void push_back(UIElement* ui_element) { Contents.push_back(ui_element); UpdateSpacing(); UpdateBoundingBox(); }
 };
 
+
+void SetUIScale_Selective(const std::vector<UIElement*> elements) {
+    for (UIElement* e : elements) e->UpdateSize_RelativeScreenSize(((float) GetScreenWidth())/800.0f, ((float) GetScreenHeight())/800.0f);
+}
+
 class Window {
 public:
     uint16_t WIDTH, HEIGHT;
     bool CLEAR_BACKHROUND;
     bool EXIT_TO_MENU = true;
     bool IS_UI_ALREADY_SCALED = false;
+    bool VIRTUAL_CURSOR = false;
+    Vector2 VCURSOR_POS = {0, 0};
     Window(uint16_t w, uint16_t h) : WIDTH(w), HEIGHT(h) {
         SetConfigFlags(FLAG_WINDOW_RESIZABLE);
         InitWindow(WIDTH, HEIGHT, "PengInt UI");
@@ -303,6 +315,7 @@ protected:
     virtual void LateUpdate_UI(float dt, float t) {}
     bool UI_LOOP(float dt, float t) {
         EXIT_TO_MENU = false;
+        if (IsKeyPressed(KEY_GRAVE)) if (IsWindowMaximized()) RestoreWindow(); else MaximizeWindow();
         if (IsWindowResized()) {
             int newWidth = GetScreenWidth();
             int newHeight = GetScreenHeight();
@@ -311,13 +324,21 @@ protected:
             WIDTH = newWidth;
             HEIGHT = newHeight;
         }
-        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) || IsKeyPressed(KEY_ENTER)) {
             Vector2 c_pos = GetMousePosition();
+            if (VIRTUAL_CURSOR) c_pos = VCURSOR_POS;
             for (UIButton* btn : UIButtons) if (c_pos.x > btn->POS.x && c_pos.y > btn->POS.y && c_pos.x < btn->POS.x+btn->SIZE.x && c_pos.y < btn->POS.y+btn->SIZE.y && btn->Visible) { if (btn->OnClick()) return true; break; }
         }
         if (GetMouseWheelMove() != 0) {
             Vector2 c_pos = GetMousePosition();
             for (UIElementArrayScrolling* eas : UIElementArrayScrollings) if (c_pos.x > eas->BoundingBox->POS.x && c_pos.y > eas->BoundingBox->POS.y && c_pos.x < eas->BoundingBox->POS.x+eas->BoundingBox->SIZE.x && c_pos.y < eas->BoundingBox->POS.y+eas->BoundingBox->SIZE.y && eas->BoundingBox->Visible) eas->OnScroll(GetMouseWheelMove()*10);
+        }
+        if (IsKeyPressed(KEY_RIGHT_SHIFT)) { VIRTUAL_CURSOR = !VIRTUAL_CURSOR; __UIL::Debug("VCUR Toggled"); }
+        if (VIRTUAL_CURSOR) {
+            if (IsKeyDown(KEY_LEFT)) VCURSOR_POS.x -= dt*25.0f;
+            if (IsKeyDown(KEY_RIGHT)) VCURSOR_POS.x += dt*25.0f;
+            if (IsKeyDown(KEY_UP)) VCURSOR_POS.y -= dt*25.0f;
+            if (IsKeyDown(KEY_DOWN)) VCURSOR_POS.y += dt*25.0f;
         }
         LateUpdate_UI(dt, t);
         BeginDrawing();
@@ -326,8 +347,8 @@ protected:
             if (e->BoundingRect.z > 0 && e->BoundingRect.w > 0) BeginScissorMode(e->BoundingRect.x, e->BoundingRect.y, e->BoundingRect.z, e->BoundingRect.w);
             e->Draw();
             if (e->BoundingRect.z > 0 && e->BoundingRect.w > 0) EndScissorMode();
-            //DrawRectangle(0, 400, 105, 400, {255, 255, 0, 255});
         }
+        if (VIRTUAL_CURSOR) DrawRectangle(VCURSOR_POS.x-2, VCURSOR_POS.y-2, 4, 4, {255, 127, 0, 255});
         EndDrawing();
         return false;
     }
@@ -347,8 +368,19 @@ protected:
         for (int i : element_indices) UIElements[i]->UpdateSize_RelativeScreenSize(((float) WIDTH)/800.0f, ((float) HEIGHT)/800.0f);
         for (int i : elementArray_indices) UIElementArrays[i]->UpdateSize_RelativeScreenSize(((float) WIDTH)/800.0f, ((float) HEIGHT)/800.0f);
     }
+    void SetUIScale(const std::vector<UIElement*> elements) {
+        for (UIElement* e : elements) e->UpdateSize_RelativeScreenSize(((float) WIDTH)/800.0f, ((float) HEIGHT)/800.0f);
+    }
+    void SetUIScale(const std::vector<UIElementArray*> elementArrays) {
+        for (UIElementArray* ea : elementArrays) ea->UpdateSize_RelativeScreenSize(((float) WIDTH)/800.0f, ((float) HEIGHT)/800.0f);
+    }
 public:
     void Run() {
+        #if defined(_WIN32)
+            std::system("cls");
+        #else
+            std::system("clear");
+        #endif
         OnRun();
         WIDTH = GetScreenWidth();
         HEIGHT = GetScreenHeight();

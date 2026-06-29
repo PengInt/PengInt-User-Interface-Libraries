@@ -9,3 +9,7 @@ Makefile
 .replit
 replit.nix
 build/
+main.py
+pyproject.toml
+.pythonlibs
+.upm
