@@ -93,8 +93,22 @@ namespace PengIntShaderStructs {
         float cx, cy, cz, _pad2;
         float w, x, y, z;
     };
+    struct Triangle_t {
+        int i1, i2, i3, m, index;
+    };
     struct Triangle {
         int i1, i2, i3, m;
+        Triangle(Triangle_t t) { i1 = t.i1; i2 = t.i2; i3 = t.i3; m = t.m; }
+    };
+    struct BVH_Node_t {
+        float count, x0, y0, z0;
+        float x1, y1, z1; 
+        int index; BVH_Node_t* bvh_ptr; Triangle_t* tri_ptr;
+    };
+    struct BVH_Node {
+        float count, x0, y0, z0;
+        float x1, y1, z1, first;
+        BVH_Node(BVH_Node_t t) { count = t.count; x0 = t.x0; y0 = t.y0; z0 = t.z0; x1 = t.x1; y1 = t.y1; z1 = t.z1; if (t.bvh_ptr != nullptr) first = t.bvh_ptr->index; else first = -t.tri_ptr->index; }
     };
     struct LightSource {
         float x, y, z, _pad1;
@@ -132,10 +146,10 @@ namespace PengIntShaderStructs {
             });
             return output;
         }
-        std::vector<Triangle> GetTriangleData(int offset) {
-            std::vector<Triangle> output;
+        std::vector<Triangle_t> GetTriangleData(int offset, int t_offset) {
+            std::vector<Triangle_t> output;
             for (int i = 0; i < Triangles.size(); i += 4) output.push_back({
-                Triangles[i] + offset, Triangles[i+1] + offset, Triangles[i+2] + offset, Triangles[i+3]
+                Triangles[i] + offset, Triangles[i+1] + offset, Triangles[i+2] + offset, Triangles[i+3], i/4 + t_offset
             });
             return output;
         }
@@ -239,18 +253,22 @@ private:
     void GetDataSync() {
         std::vector<PengIntShaderStructs::Vertex> vertices;
         std::vector<PengIntShaderStructs::Triangle> triangles;
+        std::vector<PengIntShaderStructs::Triangle_t> triangles_t;
 
-        int offset = 0;
+        int offset = 0; int offset_t = 0;
         for (int i = 0; i < PengIntShaderStructs::OBJECTS.size(); i++) {
             auto* obj = PengIntShaderStructs::OBJECTS[i];
 
-            auto v_data = obj->GetVertexData();
+            std::vector<PengIntShaderStructs::Vertex> v_data = obj->GetVertexData();
             vertices.insert(vertices.end(), v_data.begin(), v_data.end());
 
-            auto t_data = obj->GetTriangleData(offset);
-            triangles.insert(triangles.end(), t_data.begin(), t_data.end());
+            std::vector<PengIntShaderStructs::Triangle_t> t_data = obj->GetTriangleData(offset, offset_t);
+            triangles_t.insert(triangles_t.end(), t_data.begin(), t_data.end());
             offset += ((int) obj->Vertices.size()/3);
+            offset_t += ((int) obj->Triangles.size()/4);
         }
+
+        for (int i = 0; i < triangles_t.size(); i++) triangles.push_back({triangles_t[i]});
 
         SyncGPUData(vertices, triangles);
     }

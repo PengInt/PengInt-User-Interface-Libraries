@@ -12,6 +12,11 @@ struct Triangle {
     int i1, i2, i3, m;
 };
 
+struct BHV_Node {
+    float count, x0, y0, z0;
+    float x1, y1, z1, first;
+};
+
 struct LightSource {
     float x, y, z, _pad1;
     int r, g, b, a;
@@ -29,6 +34,7 @@ layout(location = 3) uniform int lightCount;
 layout(location = 4) uniform vec3 camPos;
 layout(location = 5) uniform vec4 camRot;
 layout(std430, binding = 0) buffer TriangleInput { Triangle data[]; };
+layout(std430, binding = 1) buffer BVH_Input { BVH_Node bvhData[]; };
 layout(std430, binding = 2) buffer RotatedVertexInput { Vertex vData[]; };
 layout(std430, binding = 3) buffer ColourBuffer { uint colourValues[]; } outColour;
 layout(std430, binding = 4) buffer MaterialInput { Material mdata[]; };

@@ -365,16 +365,11 @@ class FillipGameEngineWindow : public Renderer {
         (*TopBarArray)[1]->SpecialMap = OnClickArray_SpecialMap;
         (*TopBarArray)[2]->SpecialMap = OnClickArray_SpecialMap;
 
-        UIElementArrayScrolling* Explorer = new UIElementArrayScrolling(true, 0, new UIElement({0, 400, 200, 400}, {0, 0, 0, 255}, {255, 255, 255, 255}, {{"cwd", CurrentProject_fp}, {"CurrentProject_fp", CurrentProject_fp}}, "File Explorer Background"));
+        UIElementArray* JSON_InspectorPane/* = new UIElementArray({200, 400, 200, 400}, {0, 0, 0, 255}, {255, 255, 255, 255}, {}, "JSON Inspector Pane")*/;
+        UIElementArrayScrolling* Explorer = new UIElementArrayScrolling(true, 0, new UIElement({0, 400, 200, 400}, {0, 0, 0, 255}, {255, 255, 255, 255}, {{"cwd", CurrentProject_fp}, {"CurrentProject_fp", CurrentProject_fp}, {"JSON_InspectorPane", JSON_InspectorPane}}, "File Explorer Background"));
         LoadExplorerContents(Explorer, false);
 
         if (!WindowShouldClose()) EXIT_TO_MENU = true;
-        else {
-            delete TopBar_File_OnClickArray;
-            delete TopBar_Edit_OnClickArray;
-            delete TopBar_VCS_OnClickArray;
-            delete Explorer;
-        }
         CLEAR_BACKHROUND = false;
         SetUIScale();
         IS_UI_ALREADY_SCALED = true;

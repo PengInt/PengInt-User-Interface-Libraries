@@ -331,7 +331,9 @@ protected:
         }
         if (GetMouseWheelMove() != 0) {
             Vector2 c_pos = GetMousePosition();
-            for (UIElementArrayScrolling* eas : UIElementArrayScrollings) if (c_pos.x > eas->BoundingBox->POS.x && c_pos.y > eas->BoundingBox->POS.y && c_pos.x < eas->BoundingBox->POS.x+eas->BoundingBox->SIZE.x && c_pos.y < eas->BoundingBox->POS.y+eas->BoundingBox->SIZE.y && eas->BoundingBox->Visible) eas->OnScroll(GetMouseWheelMove()*10);
+            float amt = GetMouseWheelMove()*10;
+            if (VIRTUAL_CURSOR) { c_pos = VCURSOR_POS; if (IsKeyDown(KEY_EQUAL)) amt = 10; else if (IsKeyDown(KEY_MINUS)) amt = -10; }
+            for (UIElementArrayScrolling* eas : UIElementArrayScrollings) if (c_pos.x > eas->BoundingBox->POS.x && c_pos.y > eas->BoundingBox->POS.y && c_pos.x < eas->BoundingBox->POS.x+eas->BoundingBox->SIZE.x && c_pos.y < eas->BoundingBox->POS.y+eas->BoundingBox->SIZE.y && eas->BoundingBox->Visible) eas->OnScroll(amt);
         }
         if (IsKeyPressed(KEY_RIGHT_SHIFT)) { VIRTUAL_CURSOR = !VIRTUAL_CURSOR; __UIL::Debug("VCUR Toggled"); }
         if (VIRTUAL_CURSOR) {
@@ -376,11 +378,11 @@ protected:
     }
 public:
     void Run() {
-        #if defined(_WIN32)
+        /*#if defined(_WIN32)
             std::system("cls");
         #else
             std::system("clear");
-        #endif
+        #endif*/
         OnRun();
         WIDTH = GetScreenWidth();
         HEIGHT = GetScreenHeight();
