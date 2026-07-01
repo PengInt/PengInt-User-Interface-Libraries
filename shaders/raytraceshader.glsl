@@ -12,7 +12,7 @@ struct Triangle {
     int i1, i2, i3, m;
 };
 
-struct BHV_Node {
+struct BVH_Node {
     float count, x0, y0, z0;
     float x1, y1, z1, first;
 };
