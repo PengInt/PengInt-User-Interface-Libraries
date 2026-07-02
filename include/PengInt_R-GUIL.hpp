@@ -123,16 +123,19 @@ namespace PengIntShaderStructs {
     class Object;
     std::map<std::string, std::vector<Object*>> OBJECTS_SORTED;
     std::vector<Object*> OBJECTS;
+    std::map<std::string, Object*> NAMED_OBJECTS;
     class Object {
     public:
         float X, Y, Z;
         std::vector<float> Vertices;
         std::vector<int> Triangles;
+        std::vector<BVH_Node_t> BVH_Nodes;
         std::array<float, 4> rotation;
-        Object(float x, float y, float z, std::vector<float>& v, std::vector<int>& t) : X(x), Y(y), Z(z), Vertices(v), Triangles(t) {
+        Object(float x, float y, float z, std::vector<float>& v, std::vector<int>& t, std::string name) : X(x), Y(y), Z(z), Vertices(v), Triangles(t) {
             std::string coord = std::to_string((int) floor(x/10)*10) + "," + std::to_string((int) floor(y/10)*10) + "," + std::to_string((int) floor(z/10)*10);
             OBJECTS_SORTED[coord].push_back(this);
             OBJECTS.push_back(this);
+            NAMED_OBJECTS.push_back({name, this});
             rotation = {0, 1, 0, 0};
         }
         std::vector<Vertex> GetVertexData() {
@@ -153,7 +156,17 @@ namespace PengIntShaderStructs {
             });
             return output;
         }
+        std::vector<BVH_Node_t> GetBVHData(int offset) {
+            std::vector<BVH_Node_t> output;
+            for (int i = 0; i < BVH_Nodes.size(); i++) {
+                BVH_Node_t t = BVH_Nodes[i];
+                t.index = offset+i;
+                output.push_back(t);
+            }
+            return output;
+        }
     };
+    Object* FindObject(std::string name) { if (NAMED_OBJECTS[name]) return NAMED_OBJECTS[name]; return nullptr; }
     void DESTROY_EVERYTHING() {
         for (LightSource* ls : LIGHTSOURCES) delete ls;
         LIGHTSOURCES.clear();
@@ -162,6 +175,7 @@ namespace PengIntShaderStructs {
         for (Object* obj : OBJECTS) delete obj;
         OBJECTS.clear();
         OBJECTS_SORTED.clear();
+        NAMED_OBJECTS.clear();
     }
 }
 
@@ -219,7 +233,7 @@ private:
         CameraRoll = 0;
         CameraRotation = {0, 1, 0, 0};
     }
-    void SyncGPUData(const std::vector<PengIntShaderStructs::Vertex>& vertices, const std::vector<PengIntShaderStructs::Triangle>& triangles) {
+    void SyncGPUData(const std::vector<PengIntShaderStructs::Vertex>& vertices, const std::vector<PengIntShaderStructs::Triangle>& triangles, const std::vector<PengIntShaderStructs::BVH_Node>& bvh_nodes) {
         if (vertexSSBO == 0) vertexSSBO = rlLoadShaderBuffer(vertices.size() * sizeof(PengIntShaderStructs::Vertex), vertices.data(), RL_DYNAMIC_COPY);
         else if (totalVertices < vertices.size()) {
             rlUnloadShaderBuffer(vertexSSBO);
@@ -254,23 +268,24 @@ private:
         std::vector<PengIntShaderStructs::Vertex> vertices;
         std::vector<PengIntShaderStructs::Triangle> triangles;
         std::vector<PengIntShaderStructs::Triangle_t> triangles_t;
-
-        int offset = 0; int offset_t = 0;
+        std::vector<PengIntShaderStructs::BVH_Node> bvh_nodes;
+        std::vector<PengIntShaderStructs::BVH_Node_t> bvh_nodes_t;
+        int offset = 0; int offset_t = 0; int offset_bvh = 0;
         for (int i = 0; i < PengIntShaderStructs::OBJECTS.size(); i++) {
             auto* obj = PengIntShaderStructs::OBJECTS[i];
-
             std::vector<PengIntShaderStructs::Vertex> v_data = obj->GetVertexData();
             vertices.insert(vertices.end(), v_data.begin(), v_data.end());
-
             std::vector<PengIntShaderStructs::Triangle_t> t_data = obj->GetTriangleData(offset, offset_t);
             triangles_t.insert(triangles_t.end(), t_data.begin(), t_data.end());
-            offset += ((int) obj->Vertices.size()/3);
-            offset_t += ((int) obj->Triangles.size()/4);
+            std::vector<PengIntShaderStructs::BVH_Node_t> bvh_data = obj->GetBVHData(offset_bvh);
+            bvh_nodes_t.insert(bvh_nodes_t.end(), bvh_data.begin(), bvh_data.end());
+            offset += obj->Vertices.size()/3;
+            offset_t += obj->Triangles.size()/4;
+            offset_bvh += obj->BVH_Nodes.size();
         }
-
         for (int i = 0; i < triangles_t.size(); i++) triangles.push_back({triangles_t[i]});
-
-        SyncGPUData(vertices, triangles);
+        for (int i = 0; i < bvh_nodes_t.size(); i++) bvh_nodes.push_back({bvh_nodes_t[i]});
+        SyncGPUData(vertices, triangles, bvh_nodes);
     }
 public:
     Renderer(uint16_t w, uint16_t h) : Window(w, h, "PengInt GUI") {
