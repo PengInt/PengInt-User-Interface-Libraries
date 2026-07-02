@@ -380,7 +380,7 @@ PengIntShaderStructs::Object* LoadObjectFromJSON(const char* fpath) {
             }
         }
     }
-    return new PengIntShaderStructs::Object(0, 0, 0, temp_v, temp_t);
+    return new PengIntShaderStructs::Object(0, 0, 0, temp_v, temp_t, string(fpath));
 }
 PengIntShaderStructs::Material LoadMaterialFromJSON_np(const char* fpath) {
     FILE* fp = fopen(fpath, "rb");
