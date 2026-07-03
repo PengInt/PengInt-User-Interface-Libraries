@@ -6,7 +6,7 @@
 #include <array>
 #include <cmath>
 #include <string>
-#include <map>
+#include <unordered_map>
 
 #include <rapidjson/document.h>
 #include <rapidjson/filereadstream.h>
@@ -121,9 +121,9 @@ namespace PengIntShaderStructs {
     };
     std::vector<Material*> MATERIALS;
     class Object;
-    std::map<std::string, std::vector<Object*>> OBJECTS_SORTED;
+    std::unordered_map<std::string, std::vector<Object*>> OBJECTS_SORTED;
     std::vector<Object*> OBJECTS;
-    std::map<std::string, Object*> NAMED_OBJECTS;
+    std::unordered_map<std::string, Object*> NAMED_OBJECTS;
     class Object {
     public:
         float X, Y, Z;
@@ -135,7 +135,7 @@ namespace PengIntShaderStructs {
             std::string coord = std::to_string((int) floor(x/10)*10) + "," + std::to_string((int) floor(y/10)*10) + "," + std::to_string((int) floor(z/10)*10);
             OBJECTS_SORTED[coord].push_back(this);
             OBJECTS.push_back(this);
-            NAMED_OBJECTS.push_back({name, this});
+            NAMED_OBJECTS[name] = this;
             rotation = {0, 1, 0, 0};
         }
         std::vector<Vertex> GetVertexData() {
@@ -389,7 +389,7 @@ PengIntShaderStructs::Object* LoadObjectFromJSON(const char* fpath, const char* 
             }
         }
     }
-    return new PengIntShaderStructs::Object(0, 0, 0, temp_v, temp_t, string(fpath));
+    return new PengIntShaderStructs::Object(0, 0, 0, temp_v, temp_t, std::string(fpath));
 }
 PengIntShaderStructs::Material LoadMaterialFromJSON_np(const char* fpath) {
     FILE* fp = fopen(fpath, "rb");
