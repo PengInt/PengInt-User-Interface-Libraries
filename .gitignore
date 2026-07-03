@@ -13,3 +13,4 @@ main.py
 pyproject.toml
 .pythonlibs
 .upm
+compile_commands.json

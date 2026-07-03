@@ -350,7 +350,16 @@ protected:
     }
 };
 
-PengIntShaderStructs::Object* LoadObjectFromJSON(const char* fpath) {
+std::vector<PengIntShaderStructs::BVH_Node_t> LoadBVHFromJSON(const char* fpath) {
+    
+}
+std::vector<PengIntShaderStructs::BVH_Node_t> GenerateBVH(const char* fpath) {
+
+}
+void SaveBVHToJSON(const char* fpath) {
+    
+}
+PengIntShaderStructs::Object* LoadObjectFromJSON(const char* fpath, const char* bvhpath) {
     FILE* fp = fopen(fpath, "rb");
     if (!fp) printf("no file");
     char readbuffer[65536];
