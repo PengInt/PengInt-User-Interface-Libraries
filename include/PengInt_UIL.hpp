@@ -11,9 +11,6 @@
 #include <unordered_map>
 
 #define GRAPHICS_API_OPENGL_43
-
-#include "PengInt_UIL.hpp"
-#include "PengInt_UIL.hpp"
 #include "raylib.h"
 #include "rlgl.h"
 #include "external/glad.h"
@@ -378,11 +375,11 @@ protected:
     }
 public:
     void Run() {
-        /*#if defined(_WIN32)
+        /**/#if defined(_WIN32)
             std::system("cls");
         #else
             std::system("clear");
-        #endif*/
+        #endif/**/
         OnRun();
         WIDTH = GetScreenWidth();
         HEIGHT = GetScreenHeight();

@@ -351,15 +351,19 @@ protected:
 };
 
 std::vector<PengIntShaderStructs::BVH_Node_t> LoadBVHFromJSON(const char* fpath) {
-    
+    return {};
 }
 std::vector<PengIntShaderStructs::BVH_Node_t> GenerateBVH(const char* fpath) {
-
+    return {};
 }
 void SaveBVHToJSON(const char* fpath) {
     
 }
 PengIntShaderStructs::Object* LoadObjectFromJSON(const char* fpath, const char* bvhpath) {
+    std::vector<PengIntShaderStructs::BVH_Node_t> bvh_tree;
+    if (std::filesystem::exists(bvhpath) && bvhpath != "") {
+        __UIL::Debug("This is not a drill");
+    } else bvh_tree = LoadBVHFromJSON(bvhpath);
     FILE* fp = fopen(fpath, "rb");
     if (!fp) printf("no file");
     char readbuffer[65536];

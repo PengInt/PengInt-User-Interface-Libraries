@@ -99,7 +99,7 @@ namespace {
         try {
             if (std::filesystem::exists(mod_dir) && std::filesystem::is_directory(mod_dir)) {
                 for (const auto& entry : std::filesystem::directory_iterator(mod_dir)) {
-                    if (std::filesystem::is_regular_file(entry) && entry.path().extension() == f_ext) LoadObjectFromJSON(entry.path().string().c_str());
+                    if (std::filesystem::is_regular_file(entry) && entry.path().extension() == f_ext) LoadObjectFromJSON(entry.path().string().c_str(), "");
                 }
             } else std::cerr << "Specified path does not exist or isn't a directory: " << mod_dir.string() << std::endl;
         } catch (const std::filesystem::filesystem_error& e) {
@@ -250,6 +250,7 @@ namespace {
                     }
                 }
                 if (set_scale) SetUIScale_Selective(Explorer->Contents);
+                Explorer->UpdateBoundingBox();
             } else std::cerr << "Specified path does not exist or is not a directory: " << fp.string() << std::endl;
         } catch (const std::filesystem::filesystem_error& e) {
             std::cerr << "Filesystem error: " << e.what() << std::endl;
