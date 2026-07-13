@@ -1,9 +1,8 @@
 #ifndef FILLIP_SOURCE_CODE_HANDLER
 #define FILLIP_SOURCE_CODE_HANDLER
 #include <array>
-#include <raylib.h>
 
-#include "PengInt_R-GUIL.hpp"
+#include "QED_R-GUIL.hpp"
 
 std::array<float, 2> GetMouseMovement() {
     return {GetMouseDelta().x, GetMouseDelta().y};
@@ -20,7 +19,7 @@ public:
         FillipLogo_WT = LoadTexture("images/Jeremiah-Fillip_Logo (White Text).png");
         BeginDrawing();
         ClearBackground(BLACK);
-        DrawText("A culmination of the Penguin Interactive Visual Libraries", 25, 750, 25, WHITE);
+        DrawText("A culmination of the QED Visual Libraries", 25, 750, 25, WHITE);
         DrawTextureEx(FillipLogo_WT, {208, 183}, 0, 6, WHITE);
         EndDrawing();
     }
@@ -36,7 +35,7 @@ public:
             BeginDrawing();
             ClearBackground(BLACK);
             DrawTextureEx(FillipLogo_WT, {208, 183}, 0, 6, WHITE);
-            DrawTextEx(Roboto_Mono, "A culmination of the Penguin Interactive Visual Libraries", {10, 760}, 30, 0, WHITE);
+            DrawTextEx(Roboto_Mono, "A culmination of the QED Visual Libraries", {10, 760}, 30, 0, WHITE);
             EndDrawing();
         }
         seconds_left = 1;
@@ -46,7 +45,7 @@ public:
             BeginDrawing();
             ClearBackground(BLACK);
             DrawTextureEx(FillipLogo_WT, {208, 183}, 0, 6, {255, 255, 255, (unsigned char) (255*seconds_left)});
-            DrawTextEx(Roboto_Mono, "A culmination of the Penguin Interactive Visual Libraries", {10, 760}, 30, 0, {255, 255, 255, (unsigned char) (255*seconds_left)});
+            DrawTextEx(Roboto_Mono, "A culmination of the QED Visual Libraries", {10, 760}, 30, 0, {255, 255, 255, (unsigned char) (255*seconds_left)});
             EndDrawing();
         }
         OnRun();

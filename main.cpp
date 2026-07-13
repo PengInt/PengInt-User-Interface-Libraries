@@ -1,16 +1,16 @@
 #include <numbers>
 #include <iostream>
 
-#include "PengInt_FGE.hpp"
+#include "QED_FGE.hpp"
 
 
 class Game : public FillipGameEngineWindow {
-    PengIntShaderStructs::Object* cube;
-    PengIntShaderStructs::Object* cubed;
-    PengIntShaderStructs::Object* ground;
-    PengIntShaderStructs::Material* mat_cubes;
-    PengIntShaderStructs::Material* mat_ground;
-    PengIntShaderStructs::LightSource* ls1;
+    ShaderStructs::Object* cube;
+    ShaderStructs::Object* cubed;
+    ShaderStructs::Object* ground;
+    ShaderStructs::Material* mat_cubes;
+    ShaderStructs::Material* mat_ground;
+    ShaderStructs::LightSource* ls1;
 public:
     Game() : FillipGameEngineWindow() {
         /*cube = LoadObjectFromJSON("cube.json");

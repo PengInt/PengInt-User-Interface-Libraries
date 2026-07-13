@@ -15,7 +15,7 @@ vec4 hamilton(vec4 a, vec4 b) {
     );
 }
 
-layout(std430, binding = 0) buffer VertexBufer { Vertex data[]; };
+layout(std430, binding = 0) buffer VertexBuffer { Vertex data[]; };
 
 layout(local_size_x = 256) in;
 

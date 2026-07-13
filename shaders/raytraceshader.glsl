@@ -33,12 +33,15 @@ layout(location = 2) uniform int screenHeight;
 layout(location = 3) uniform int lightCount;
 layout(location = 4) uniform vec3 camPos;
 layout(location = 5) uniform vec4 camRot;
+layout(location = 6) uniform int fbvhCount;
+
 layout(std430, binding = 0) buffer TriangleInput { Triangle data[]; };
 layout(std430, binding = 1) buffer BVH_Input { BVH_Node bvhData[]; };
 layout(std430, binding = 2) buffer RotatedVertexInput { Vertex vData[]; };
 layout(std430, binding = 3) buffer ColourBuffer { uint colourValues[]; } outColour;
 layout(std430, binding = 4) buffer MaterialInput { Material mdata[]; };
 layout(std430, binding = 5) buffer LightSourceInput { LightSource lsdata[]; };
+layout(std430, binding = 6) buffer FirstBVHNodeInput { uint fbvhdata[]; };
 
 vec4 hamilton(vec4 a, vec4 b) {
     return vec4(
@@ -76,10 +79,10 @@ vec3 f(vec3 origin, vec3 direction, float d) {
     return vec3(direction.x*d+origin.x, direction.y*d+origin.y, direction.z*d+origin.z);
 }
 
-float LightRaycast(vec3 origin, vec3 direction, LightSource ls, int triSource_i) {
+RayHit GetClosestRayHit(vec3 origin, vec3 direction, int skip) {
     RayHit closestHit = RayHit(-1, -1, vec3(0, 0, 0));
     for (int i = 0; i < triangleCount; i++) {
-        if (i == triSource_i) continue;
+        if (i == skip) continue;
         Triangle tri = data[i];
         vec3 a = vec3(vData[tri.i1].px+vData[tri.i1].cx, vData[tri.i1].py+vData[tri.i1].cy, vData[tri.i1].pz+vData[tri.i1].cz);
         vec3 b = vec3(vData[tri.i2].px+vData[tri.i2].cx, vData[tri.i2].py+vData[tri.i2].cy, vData[tri.i2].pz+vData[tri.i2].cz);
@@ -95,6 +98,11 @@ float LightRaycast(vec3 origin, vec3 direction, LightSource ls, int triSource_i)
             closestHit = RayHit(i, d, p);
         }
     }
+    return closestHit;
+}
+
+float LightRaycast(vec3 origin, vec3 direction, LightSource ls, int skip) {
+    RayHit closestHit = GetClosestRayHit(origin, direction, skip);
     if (closestHit.tri_i == -1 || closestHit.d > length(vec3(ls.x, ls.y, ls.z)-origin)) return length(vec3(ls.x, ls.y, ls.z)-origin);
     else return -1;
 }
@@ -115,24 +123,7 @@ float CorrectHue(float h) {
 }
 
 RaycastResult Raycast(vec3 origin, vec3 direction, int skip, float last_density) {
-    RayHit closestHit = RayHit(-1, -1, vec3(0, 0, 0));
-    for (int i = 0; i < triangleCount; i++) {
-        if (i == skip) continue;
-        Triangle tri = data[i];
-        vec3 a = vec3(vData[tri.i1].px+vData[tri.i1].cx, vData[tri.i1].py+vData[tri.i1].cy, vData[tri.i1].pz+vData[tri.i1].cz);
-        vec3 b = vec3(vData[tri.i2].px+vData[tri.i2].cx, vData[tri.i2].py+vData[tri.i2].cy, vData[tri.i2].pz+vData[tri.i2].cz);
-        vec3 c = vec3(vData[tri.i3].px+vData[tri.i3].cx, vData[tri.i3].py+vData[tri.i3].cy, vData[tri.i3].pz+vData[tri.i3].cz);
-        vec3 normal = normalize(cross(b-a, c-a));
-        float A = normal.x;
-        float B = normal.y;
-        float C = normal.z;
-        float D = A*a.x + B*a.y + C*a.z;
-        float d = -(A*origin.x + B*origin.y + C*origin.z - D)/(A*direction.x + B*direction.y + C*direction.z);
-        vec3 p = f(origin, direction, d);
-        if (Hit(a, b, c, normal, p) && (d < closestHit.d || closestHit.tri_i == -1) && d >= 0) {
-            closestHit = RayHit(i, d, p);
-        }
-    }
+    RayHit closestHit = GetClosestRayHit(origin, direction, skip);
     vec3 finalColour = vec3(0, 0, 0);
     bool willRefl = false; bool willRefr = false;
     vec3 refl = vec3(0, 0, 0); vec3 refr = vec3(0, 0, 0);

@@ -1,6 +1,6 @@
 #ifndef MAIN_USERPROJECT
 #define MAIN_USERPROJECT
-#include "FillipSourceCodeHandler.hpp"
+#include "FGE_SourceCodeHandler.hpp"
 
 class GameScript : public Script {
 public:

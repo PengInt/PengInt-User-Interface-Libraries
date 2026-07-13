@@ -6,11 +6,12 @@
 #include <array>
 #include <cmath>
 #include <string>
+#include <map>
 
-//#include <rapidjson/document.h>
-//#include <rapidjson/filereadstream.h>
+#include <rapidjson/document.h>
+#include <rapidjson/filereadstream.h>
 
-#include "PengInt_UIL.hpp"
+#include "QED_UIL.hpp"
 
 
 float VectorDotProduct(const std::array<float, 3>& v1, const std::array<float, 3>& v2) {
@@ -52,7 +53,7 @@ std::array<float, 4> CombineQuaternions(const std::array<float, 4>& q1, const st
     return toAngleAxis(QuaternionMultiplication(fromAngleAxis(q1), fromAngleAxis(q2)));
 }
 
-namespace PengIntShaderStructs {
+namespace ShaderStructs {
     struct Vertex {
         float px, py, pz, _pad1;
         float cx, cy, cz, _pad2;
@@ -60,20 +61,25 @@ namespace PengIntShaderStructs {
         int oi, vi, _pad3[2];
     };
     struct Triangle {
-        int i1, i2, i3, _pad1;
-        float r, g, b, _pad2;
-        float cx, cy, cz, _pad3;
+        int i1, i2, i3, glow;
+        float r, g, b, a;
+        float cx, cy, cz, m;
         float w, x, y, z;
     };
     class Object;
+    std::map<std::string, std::vector<Object*>> OBJECTS_SORTED;
     std::vector<Object*> OBJECTS;
     class Object {
     public:
         float X, Y, Z;
         std::vector<float> Vertices;
-        std::vector<int> Triangles;
+        std::vector<int> Triangles; // i1, i2, i3, glow, r, g, b, a, m
         std::vector<std::array<float, 4>> PLANNED_ROTATIONS;
-        Object(float x, float y, float z, std::vector<float>& v, std::vector<int>& t) : X(x), Y(y), Z(z), Vertices(v), Triangles(t) { OBJECTS.push_back(this); }
+        Object(float x, float y, float z, std::vector<float>& v, std::vector<int>& t) : X(x), Y(y), Z(z), Vertices(v), Triangles(t) {
+            std::string coord = std::to_string((int) floor(x/10)*10) + "," + std::to_string((int) floor(y/10)*10) + "," + std::to_string((int) floor(z/10)*10);
+            OBJECTS_SORTED[coord].push_back(this);
+            OBJECTS.push_back(this);
+        }
         std::vector<Vertex> GetVertexData(int oi) {
             std::vector<Vertex> output;
             std::array<float, 4> quaternion = {0, 1, 0, 0};
@@ -89,9 +95,9 @@ namespace PengIntShaderStructs {
         }
         std::vector<Triangle> GetTriangleData(int offset, float cx, float cy, float cz, float w, float x, float y, float z) {
             std::vector<Triangle> output;
-            for (int i = 0; i < Triangles.size(); i += 7) output.push_back({
-                Triangles[i] + offset, Triangles[i+1] + offset, Triangles[i+2] + offset, 0,
-                (float) Triangles[i+3], (float) Triangles[i+4], (float) Triangles[i+5], 0,
+            for (int i = 0; i < Triangles.size(); i += 9) output.push_back({
+                Triangles[i] + offset, Triangles[i+1] + offset, Triangles[i+2] + offset, Triangles[i+3],
+                (float) Triangles[i+4], (float) Triangles[i+5], (float) Triangles[i+6], (float) Triangles[i+7],
                 cx, cy, cz, 0,
                 w, x, y, z
             });
@@ -108,7 +114,7 @@ protected:
 private:
     Shader DrawShader;
     unsigned int RotateProgram;
-    unsigned int BufferProgram;
+    unsigned int RaytraceProgram;
     unsigned int vertexSSBO;
     unsigned int triangleSSBO;
     unsigned int zBufferSSBO;
@@ -125,7 +131,7 @@ private:
 
         char* bufCode = LoadFileText("shaders/buffershader.glsl");
         unsigned int bufShader = rlLoadShader(bufCode, RL_COMPUTE_SHADER);
-        BufferProgram = rlLoadShaderProgramCompute(bufShader);
+        RaytraceProgram = rlLoadShaderProgramCompute(bufShader);
         UnloadFileText(bufCode);
 
         vertexSSBO = 0;
@@ -138,35 +144,35 @@ private:
         CameraYaw = 0;
         CameraRotation = {0, 1, 0, 0};
     }
-    void SyncGPUData(const std::vector<PengIntShaderStructs::Vertex>& vertices, const std::vector<PengIntShaderStructs::Triangle>& triangles) {
-        if (vertexSSBO == 0) vertexSSBO = rlLoadShaderBuffer(vertices.size() * sizeof(PengIntShaderStructs::Vertex), vertices.data(), RL_DYNAMIC_COPY);
+    void SyncGPUData(const std::vector<ShaderStructs::Vertex>& vertices, const std::vector<ShaderStructs::Triangle>& triangles) {
+        if (vertexSSBO == 0) vertexSSBO = rlLoadShaderBuffer(vertices.size() * sizeof(ShaderStructs::Vertex), vertices.data(), RL_DYNAMIC_COPY);
         else if (totalVertices < vertices.size()) {
             rlUnloadShaderBuffer(vertexSSBO);
-            vertexSSBO = rlLoadShaderBuffer(vertices.size() * sizeof(PengIntShaderStructs::Vertex), vertices.data(), RL_DYNAMIC_COPY);
-        } else rlUpdateShaderBuffer(vertexSSBO, vertices.data(), vertices.size() * sizeof(PengIntShaderStructs::Vertex), 0);
+            vertexSSBO = rlLoadShaderBuffer(vertices.size() * sizeof(ShaderStructs::Vertex), vertices.data(), RL_DYNAMIC_COPY);
+        } else rlUpdateShaderBuffer(vertexSSBO, vertices.data(), vertices.size() * sizeof(ShaderStructs::Vertex), 0);
         totalVertices = vertices.size();
 
-        if (triangleSSBO == 0) triangleSSBO = rlLoadShaderBuffer(triangles.size() * sizeof(PengIntShaderStructs::Triangle), triangles.data(), RL_DYNAMIC_COPY);
+        if (triangleSSBO == 0) triangleSSBO = rlLoadShaderBuffer(triangles.size() * sizeof(ShaderStructs::Triangle), triangles.data(), RL_DYNAMIC_COPY);
         else if (totalTriangles < triangles.size()) {
             rlUnloadShaderBuffer(triangleSSBO);
-            triangleSSBO = rlLoadShaderBuffer(triangles.size() * sizeof(PengIntShaderStructs::Triangle), triangles.data(), RL_DYNAMIC_COPY);
-        } else rlUpdateShaderBuffer(triangleSSBO, triangles.data(), triangles.size() * sizeof(PengIntShaderStructs::Triangle), 0);
+            triangleSSBO = rlLoadShaderBuffer(triangles.size() * sizeof(ShaderStructs::Triangle), triangles.data(), RL_DYNAMIC_COPY);
+        } else rlUpdateShaderBuffer(triangleSSBO, triangles.data(), triangles.size() * sizeof(ShaderStructs::Triangle), 0);
         totalTriangles = triangles.size();
 
         if (zBufferSSBO == 0) zBufferSSBO = rlLoadShaderBuffer(WIDTH*HEIGHT*sizeof(int), NULL, RL_DYNAMIC_COPY);
         if (cBufferSSBO == 0) cBufferSSBO = rlLoadShaderBuffer(WIDTH*HEIGHT*sizeof(uint32_t), NULL, RL_DYNAMIC_COPY);
     }
     void GetDataSync() {
-        std::vector<PengIntShaderStructs::Vertex> vertices;
-        std::vector<PengIntShaderStructs::Triangle> triangles;
+        std::vector<ShaderStructs::Vertex> vertices;
+        std::vector<ShaderStructs::Triangle> triangles;
 
         float cx = CameraPosition[0], cy = CameraPosition[1], cz = CameraPosition[2];
         CameraRotation = CombineQuaternions({CameraPitch, 1, 0, 0}, {CameraYaw, 0, 1, 0});
         float cw = CameraRotation[0], cx_rot = CameraRotation[1], cy_rot = CameraRotation[2], cz_rot = CameraRotation[3];
 
         int offset = 0;
-        for (int i = 0; i < PengIntShaderStructs::OBJECTS.size(); i++) {
-            auto* obj = PengIntShaderStructs::OBJECTS[i];
+        for (int i = 0; i < ShaderStructs::OBJECTS.size(); i++) {
+            auto* obj = ShaderStructs::OBJECTS[i];
 
             auto v_data = obj->GetVertexData(i);
             vertices.insert(vertices.end(), v_data.begin(), v_data.end());
@@ -179,12 +185,12 @@ private:
         SyncGPUData(vertices, triangles);
     }
     void SetDataSync() {
-        std::vector<PengIntShaderStructs::Vertex> results(totalVertices);
-        rlReadShaderBuffer(vertexSSBO, results.data(), totalVertices * sizeof(PengIntShaderStructs::Vertex), 0);
+        std::vector<ShaderStructs::Vertex> results(totalVertices);
+        rlReadShaderBuffer(vertexSSBO, results.data(), totalVertices * sizeof(ShaderStructs::Vertex), 0);
 
         for (auto& v : results) {
-            if (v.oi < PengIntShaderStructs::OBJECTS.size()) {
-                auto* obj = PengIntShaderStructs::OBJECTS[v.oi];
+            if (v.oi < ShaderStructs::OBJECTS.size()) {
+                auto* obj = ShaderStructs::OBJECTS[v.oi];
                 int baseIdx = v.vi*3;
                 if (baseIdx + 2 < obj->Vertices.size()) {
                     obj->Vertices[baseIdx] = v.px;
@@ -214,6 +220,7 @@ protected:
     }
     virtual void OnUpdate_GUI(float dt, float t) { }
     void PreUpdate_UI(float dt, float t) {
+        ClearBackground({0, 0, 0, 255});
         if (IsWindowResized()) {
             rlUnloadShaderBuffer(zBufferSSBO);
             rlUnloadShaderBuffer(cBufferSSBO);
@@ -233,10 +240,10 @@ protected:
         std::vector<uint32_t> clearC(sw * sh, 0);
         rlUpdateShaderBuffer(cBufferSSBO, clearC.data(), clearC.size() * sizeof(uint32_t), 0);
         glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
-        rlEnableShader(BufferProgram);
-            rlSetUniform(rlGetLocationUniform(BufferProgram, "count"), &totalTriangles, SHADER_UNIFORM_INT, 1);
-            rlSetUniform(rlGetLocationUniform(BufferProgram, "screenWidth"), &sw, SHADER_UNIFORM_INT, 1);
-            rlSetUniform(rlGetLocationUniform(BufferProgram, "screenHeight"), &sh, SHADER_UNIFORM_INT, 1);
+        rlEnableShader(RaytraceProgram);
+            rlSetUniform(rlGetLocationUniform(RaytraceProgram, "count"), &totalTriangles, SHADER_UNIFORM_INT, 1);
+            rlSetUniform(rlGetLocationUniform(RaytraceProgram, "screenWidth"), &sw, SHADER_UNIFORM_INT, 1);
+            rlSetUniform(rlGetLocationUniform(RaytraceProgram, "screenHeight"), &sh, SHADER_UNIFORM_INT, 1);
             rlBindShaderBuffer(triangleSSBO, 0);
             rlBindShaderBuffer(zBufferSSBO, 1);
             rlBindShaderBuffer(vertexSSBO, 2);
@@ -255,48 +262,38 @@ protected:
     }
 };
 
-/*PengIntShaderStructs::Object* LoadObjectFromJSON(const char* fpath) {
+ShaderStructs::Object* LoadObjectFromJSON(const char* fpath) {
     FILE* fp = fopen(fpath, "rb");
-    if (!fp) {
-        printf("FATAL ERROR: Could not open file at %s\n", fpath);
-        return nullptr;
-    }
-    char readBuffer[65536];
-    rapidjson::FileReadStream is(fp, readBuffer, sizeof(readBuffer));
+    if (!fp) printf("no file");
+    char readbuffer[65536];
+    rapidjson::FileReadStream is(fp, readbuffer, sizeof(readbuffer));
     rapidjson::Document doc;
     doc.ParseStream(is);
-    if (doc.HasParseError()) {
-        printf("JSON Parse Error: %d\n", doc.GetParseError());
-        return nullptr;
-    }
     fclose(fp);
-    if (!doc.HasMember("v") || !doc.HasMember("t")) {
-        printf("JSON Error: Missing 'v' or 't' arrays\n");
-        return nullptr;
+    if (doc.HasParseError()) printf("parse error");
+    assert(doc.IsObject());
+    std::vector<float> temp_v;
+    if (doc.HasMember("v") && doc["v"].IsArray()) {
+        const auto& arr = doc["v"].GetArray();
+        temp_v.reserve(arr.Size());
+        for (auto& v : arr) {
+            if (v.IsFloat()) {
+                temp_v.push_back(v.GetFloat());
+            }
+        }
     }
-    const rapidjson::Value& vArr = doc["v"];
-    if (!vArr.IsArray()) {
-        printf("Data Error: 'v' is not an array!\n");
-        return nullptr;
+    std::vector<int> temp_t;
+    if (doc.HasMember("t") && doc["t"].IsArray()) {
+        const auto& arr = doc["t"].GetArray();
+        temp_t.reserve(arr.Size());
+        for (auto& t : arr) {
+            if (t.IsInt()) {
+                temp_t.push_back(t.GetInt());
+            }
+        }
     }
-    std::vector<float> vertices;
-    vertices.reserve(vArr.Size());
-    for (auto& v : vArr.GetArray()) {
-        vertices.push_back(v.GetFloat());
-    }
-    const rapidjson::Value& tArr = doc["t"];
-    if (!tArr.IsArray()) {
-        printf("Data Error: 't' is not an array!\n");
-        return nullptr;
-    }
-    std::vector<int> triangles;
-    triangles.reserve(tArr.Size());
-    for (auto& t : tArr.GetArray()) {
-        triangles.push_back(t.GetInt());
-    }
-    printf("done\n");
-    return new PengIntShaderStructs::Object(0, 0, 0, vertices, triangles);
-}*/
+    return new ShaderStructs::Object(0, 0, 0, temp_v, temp_t);
+}
 
 
 #endif //PENGINT_GUIL_HPP

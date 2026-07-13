@@ -1,5 +1,5 @@
-#ifndef PENGINT_R_GUIL_HPP
-#define PENGINT_R_GUIL_HPP
+#ifndef QED_R_GUIL_HPP
+#define QED_R_GUIL_HPP
 
 #include <cstdint>
 #include <cstdio>
@@ -11,7 +11,7 @@
 #include <rapidjson/document.h>
 #include <rapidjson/filereadstream.h>
 
-#include "PengInt_UIL.hpp"
+#include "QED_UIL.hpp"
 
 
 std::array<float, 3> NormaliseV(const std::array<float, 3>& v) {
@@ -87,7 +87,7 @@ std::array<float, 3> RotateAround(const std::array<float, 3>& v, const std::arra
     return {r[0]+c[0], r[1]+c[1], r[2]+c[2]};
 }
 
-namespace PengIntShaderStructs {
+namespace ShaderStructs {
     struct Vertex {
         float px, py, pz, _pad1;
         float cx, cy, cz, _pad2;
@@ -102,8 +102,8 @@ namespace PengIntShaderStructs {
     };
     struct BVH_Node_t {
         float count, x0, y0, z0;
-        float x1, y1, z1; 
-        int index; BVH_Node_t* bvh_ptr; Triangle_t* tri_ptr;
+        float x1, y1, z1;
+        int index; BVH_Node_t* bvh_ptr; Triangle_t* tri_ptr; int loc_tri_i;
     };
     struct BVH_Node {
         float count, x0, y0, z0;
@@ -131,7 +131,16 @@ namespace PengIntShaderStructs {
         std::vector<int> Triangles;
         std::vector<BVH_Node_t> BVH_Nodes;
         std::array<float, 4> rotation;
-        Object(float x, float y, float z, std::vector<float>& v, std::vector<int>& t, std::string name) : X(x), Y(y), Z(z), Vertices(v), Triangles(t) {
+        Object(float x, float y, float z, std::vector<float>& v, std::vector<int>& t, std::vector<float> bvh, std::string name) : X(x), Y(y), Z(z), Vertices(v), Triangles(t) {
+            for (int i = 0; i < bvh.size(); i += 9) {
+                BVH_Nodes.push_back({
+                    bvh[i], bvh[i+1], bvh[i+2], bvh[i+3],
+                    bvh[i+4], bvh[i+5], bvh[i+6], 0, nullptr, nullptr, (int) bvh[i+8]
+                });
+            }
+            for (int i = 0; i < BVH_Nodes.size(); i += 1) {
+                if (bvh[9*i+7] != -1) BVH_Nodes[i].bvh_ptr = &BVH_Nodes[i];
+            }
             std::string coord = std::to_string((int) floor(x/10)*10) + "," + std::to_string((int) floor(y/10)*10) + "," + std::to_string((int) floor(z/10)*10);
             OBJECTS_SORTED[coord].push_back(this);
             OBJECTS.push_back(this);
@@ -156,11 +165,12 @@ namespace PengIntShaderStructs {
             });
             return output;
         }
-        std::vector<BVH_Node_t> GetBVHData(int offset) {
+        std::vector<BVH_Node_t> GetBVHData(int offset, int t_offset, std::vector<Triangle_t>& TriangleData) {
             std::vector<BVH_Node_t> output;
             for (int i = 0; i < BVH_Nodes.size(); i++) {
                 BVH_Node_t t = BVH_Nodes[i];
                 t.index = offset+i;
+                if (t.bvh_ptr == nullptr) t.tri_ptr = &TriangleData[t_offset+t.loc_tri_i];
                 output.push_back(t);
             }
             return output;
@@ -179,13 +189,13 @@ namespace PengIntShaderStructs {
     }
 }
 
-std::vector<PengIntShaderStructs::Material> DeRefMat(std::vector<PengIntShaderStructs::Material*> mat_ptr_vec) {
-    std::vector<PengIntShaderStructs::Material> flat;
+std::vector<ShaderStructs::Material> DeRefMat(std::vector<ShaderStructs::Material*> mat_ptr_vec) {
+    std::vector<ShaderStructs::Material> flat;
     for (auto ptr : mat_ptr_vec) flat.push_back(*ptr);
     return flat;
 }
-std::vector<PengIntShaderStructs::LightSource> DeRefLS(std::vector<PengIntShaderStructs::LightSource*> ls_ptr_vec) {
-    std::vector<PengIntShaderStructs::LightSource> flat;
+std::vector<ShaderStructs::LightSource> DeRefLS(std::vector<ShaderStructs::LightSource*> ls_ptr_vec) {
+    std::vector<ShaderStructs::LightSource> flat;
     for (auto ptr : ls_ptr_vec) flat.push_back(*ptr);
     return flat;
 }
@@ -200,14 +210,18 @@ private:
     unsigned int RotateProgram;
     unsigned int RaytraceProgram;
     unsigned int vertexSSBO;
+    unsigned int BVHSSBO;
     unsigned int triangleSSBO;
     unsigned int cBufferSSBO;
     unsigned int materialSSBO;
     unsigned int lightSourceSSBO;
+    unsigned int fBVHSSBO;
     int totalVertices = 0;
+    int totalBVHs = 0;
     int totalTriangles = 0;
     int totalMaterials = 0;
     int totalLightSources = 0;
+    int totalfBVHs = 0;
     void LoadShaders() {
         DrawShader = LoadShader(0, "shaders/drawshader.glsl");
 
@@ -222,10 +236,12 @@ private:
         UnloadFileText(bufCode);
 
         vertexSSBO = 0;
+        BVHSSBO = 0;
         triangleSSBO = 0;
         cBufferSSBO = 0;
         materialSSBO = 0;
         lightSourceSSBO = 0;
+        fBVHSSBO = 0;
 
         CameraPosition = {0, 0, 0};
         CameraPitch = 0;
@@ -233,51 +249,67 @@ private:
         CameraRoll = 0;
         CameraRotation = {0, 1, 0, 0};
     }
-    void SyncGPUData(const std::vector<PengIntShaderStructs::Vertex>& vertices, const std::vector<PengIntShaderStructs::Triangle>& triangles, const std::vector<PengIntShaderStructs::BVH_Node>& bvh_nodes) {
-        if (vertexSSBO == 0) vertexSSBO = rlLoadShaderBuffer(vertices.size() * sizeof(PengIntShaderStructs::Vertex), vertices.data(), RL_DYNAMIC_COPY);
+    void SyncGPUData(const std::vector<ShaderStructs::Vertex>& vertices, const std::vector<ShaderStructs::Triangle>& triangles, const std::vector<ShaderStructs::BVH_Node>& bvh_nodes, const std::vector<unsigned int>& first_bvh_nodes) {
+        if (vertexSSBO == 0) vertexSSBO = rlLoadShaderBuffer(vertices.size() * sizeof(ShaderStructs::Vertex), vertices.data(), RL_DYNAMIC_COPY);
         else if (totalVertices < vertices.size()) {
             rlUnloadShaderBuffer(vertexSSBO);
-            vertexSSBO = rlLoadShaderBuffer(vertices.size() * sizeof(PengIntShaderStructs::Vertex), vertices.data(), RL_DYNAMIC_COPY);
-        } else rlUpdateShaderBuffer(vertexSSBO, vertices.data(), vertices.size() * sizeof(PengIntShaderStructs::Vertex), 0);
+            vertexSSBO = rlLoadShaderBuffer(vertices.size() * sizeof(ShaderStructs::Vertex), vertices.data(), RL_DYNAMIC_COPY);
+        } else rlUpdateShaderBuffer(vertexSSBO, vertices.data(), vertices.size() * sizeof(ShaderStructs::Vertex), 0);
         totalVertices = vertices.size();
 
-        if (triangleSSBO == 0) triangleSSBO = rlLoadShaderBuffer(triangles.size() * sizeof(PengIntShaderStructs::Triangle), triangles.data(), RL_DYNAMIC_COPY);
+        if (BVHSSBO == 0) BVHSSBO = rlLoadShaderBuffer(bvh_nodes.size() * sizeof(ShaderStructs::BVH_Node), bvh_nodes.data(), RL_DYNAMIC_COPY);
+        else if (totalBVHs < bvh_nodes.size()) {
+            rlUnloadShaderBuffer(BVHSSBO);
+            BVHSSBO = rlLoadShaderBuffer(bvh_nodes.size() * sizeof(ShaderStructs::BVH_Node), bvh_nodes.data(), RL_DYNAMIC_COPY);
+        } else rlUpdateShaderBuffer(BVHSSBO, bvh_nodes.data(), bvh_nodes.size() * sizeof(ShaderStructs::BVH_Node), 0);
+        totalBVHs = bvh_nodes.size();
+
+        if (triangleSSBO == 0) triangleSSBO = rlLoadShaderBuffer(triangles.size() * sizeof(ShaderStructs::Triangle), triangles.data(), RL_DYNAMIC_COPY);
         else if (totalTriangles < triangles.size()) {
             rlUnloadShaderBuffer(triangleSSBO);
-            triangleSSBO = rlLoadShaderBuffer(triangles.size() * sizeof(PengIntShaderStructs::Triangle), triangles.data(), RL_DYNAMIC_COPY);
-        } else rlUpdateShaderBuffer(triangleSSBO, triangles.data(), triangles.size() * sizeof(PengIntShaderStructs::Triangle), 0);
+            triangleSSBO = rlLoadShaderBuffer(triangles.size() * sizeof(ShaderStructs::Triangle), triangles.data(), RL_DYNAMIC_COPY);
+        } else rlUpdateShaderBuffer(triangleSSBO, triangles.data(), triangles.size() * sizeof(ShaderStructs::Triangle), 0);
         totalTriangles = triangles.size();
 
         if (cBufferSSBO == 0) cBufferSSBO = rlLoadShaderBuffer(WIDTH*HEIGHT*sizeof(uint32_t), NULL, RL_DYNAMIC_COPY);
 
-        if (materialSSBO == 0) materialSSBO = rlLoadShaderBuffer(PengIntShaderStructs::MATERIALS.size() * sizeof(PengIntShaderStructs::Material), DeRefMat(PengIntShaderStructs::MATERIALS).data(), RL_DYNAMIC_COPY);
-        else if (totalMaterials < PengIntShaderStructs::MATERIALS.size()) {
+        if (materialSSBO == 0) materialSSBO = rlLoadShaderBuffer(ShaderStructs::MATERIALS.size() * sizeof(ShaderStructs::Material), DeRefMat(ShaderStructs::MATERIALS).data(), RL_DYNAMIC_COPY);
+        else if (totalMaterials < ShaderStructs::MATERIALS.size()) {
             rlUnloadShaderBuffer(materialSSBO);
-            materialSSBO = rlLoadShaderBuffer(PengIntShaderStructs::MATERIALS.size() * sizeof(PengIntShaderStructs::Material), DeRefMat(PengIntShaderStructs::MATERIALS).data(), RL_DYNAMIC_COPY);
-        } else rlUpdateShaderBuffer(materialSSBO, DeRefMat(PengIntShaderStructs::MATERIALS).data(), PengIntShaderStructs::MATERIALS.size() * sizeof(PengIntShaderStructs::Material), 0);
-        totalMaterials = PengIntShaderStructs::MATERIALS.size();
+            materialSSBO = rlLoadShaderBuffer(ShaderStructs::MATERIALS.size() * sizeof(ShaderStructs::Material), DeRefMat(ShaderStructs::MATERIALS).data(), RL_DYNAMIC_COPY);
+        } else rlUpdateShaderBuffer(materialSSBO, DeRefMat(ShaderStructs::MATERIALS).data(), ShaderStructs::MATERIALS.size() * sizeof(ShaderStructs::Material), 0);
+        totalMaterials = ShaderStructs::MATERIALS.size();
 
-        if (lightSourceSSBO == 0) lightSourceSSBO = rlLoadShaderBuffer(PengIntShaderStructs::LIGHTSOURCES.size() * sizeof(PengIntShaderStructs::Material), DeRefLS(PengIntShaderStructs::LIGHTSOURCES).data(), RL_DYNAMIC_COPY);
-        else if (totalLightSources < PengIntShaderStructs::LIGHTSOURCES.size()) {
+        if (lightSourceSSBO == 0) lightSourceSSBO = rlLoadShaderBuffer(ShaderStructs::LIGHTSOURCES.size() * sizeof(ShaderStructs::LightSource), DeRefLS(ShaderStructs::LIGHTSOURCES).data(), RL_DYNAMIC_COPY);
+        else if (totalLightSources < ShaderStructs::LIGHTSOURCES.size()) {
             rlUnloadShaderBuffer(lightSourceSSBO);
-            lightSourceSSBO = rlLoadShaderBuffer(PengIntShaderStructs::LIGHTSOURCES.size() * sizeof(PengIntShaderStructs::LightSource), DeRefLS(PengIntShaderStructs::LIGHTSOURCES).data(), RL_DYNAMIC_COPY);
-        } else rlUpdateShaderBuffer(lightSourceSSBO, DeRefLS(PengIntShaderStructs::LIGHTSOURCES).data(), PengIntShaderStructs::LIGHTSOURCES.size() * sizeof(PengIntShaderStructs::LightSource), 0);
-        totalLightSources = PengIntShaderStructs::LIGHTSOURCES.size();
+            lightSourceSSBO = rlLoadShaderBuffer(ShaderStructs::LIGHTSOURCES.size() * sizeof(ShaderStructs::LightSource), DeRefLS(ShaderStructs::LIGHTSOURCES).data(), RL_DYNAMIC_COPY);
+        } else rlUpdateShaderBuffer(lightSourceSSBO, DeRefLS(ShaderStructs::LIGHTSOURCES).data(), ShaderStructs::LIGHTSOURCES.size() * sizeof(ShaderStructs::LightSource), 0);
+        totalLightSources = ShaderStructs::LIGHTSOURCES.size();
+
+        if (fBVHSSBO == 0) fBVHSSBO = rlLoadShaderBuffer(first_bvh_nodes.size() * sizeof(unsigned int), first_bvh_nodes.data(), RL_DYNAMIC_COPY);
+        else if (totalfBVHs < first_bvh_nodes.size()) {
+            rlUnloadShaderBuffer(fBVHSSBO);
+            fBVHSSBO = rlLoadShaderBuffer(first_bvh_nodes.size() * sizeof(unsigned int), first_bvh_nodes.data(), RL_DYNAMIC_COPY);
+        } else rlUpdateShaderBuffer(fBVHSSBO, first_bvh_nodes.data(), first_bvh_nodes.size() * sizeof(unsigned int), 0);
+        totalfBVHs = first_bvh_nodes.size();
     }
     void GetDataSync() {
-        std::vector<PengIntShaderStructs::Vertex> vertices;
-        std::vector<PengIntShaderStructs::Triangle> triangles;
-        std::vector<PengIntShaderStructs::Triangle_t> triangles_t;
-        std::vector<PengIntShaderStructs::BVH_Node> bvh_nodes;
-        std::vector<PengIntShaderStructs::BVH_Node_t> bvh_nodes_t;
+        std::vector<ShaderStructs::Vertex> vertices;
+        std::vector<ShaderStructs::Triangle> triangles;
+        std::vector<ShaderStructs::Triangle_t> triangles_t;
+        std::vector<ShaderStructs::BVH_Node> bvh_nodes;
+        std::vector<ShaderStructs::BVH_Node_t> bvh_nodes_t;
+        std::vector<unsigned int> first_bvh_nodes;
         int offset = 0; int offset_t = 0; int offset_bvh = 0;
-        for (int i = 0; i < PengIntShaderStructs::OBJECTS.size(); i++) {
-            auto* obj = PengIntShaderStructs::OBJECTS[i];
-            std::vector<PengIntShaderStructs::Vertex> v_data = obj->GetVertexData();
+        for (int i = 0; i < ShaderStructs::OBJECTS.size(); i++) {
+            auto* obj = ShaderStructs::OBJECTS[i];
+            std::vector<ShaderStructs::Vertex> v_data = obj->GetVertexData();
             vertices.insert(vertices.end(), v_data.begin(), v_data.end());
-            std::vector<PengIntShaderStructs::Triangle_t> t_data = obj->GetTriangleData(offset, offset_t);
+            std::vector<ShaderStructs::Triangle_t> t_data = obj->GetTriangleData(offset, offset_t);
             triangles_t.insert(triangles_t.end(), t_data.begin(), t_data.end());
-            std::vector<PengIntShaderStructs::BVH_Node_t> bvh_data = obj->GetBVHData(offset_bvh);
+            first_bvh_nodes.push_back(offset_bvh);
+            std::vector<ShaderStructs::BVH_Node_t> bvh_data = obj->GetBVHData(offset_bvh, offset_t, t_data);
             bvh_nodes_t.insert(bvh_nodes_t.end(), bvh_data.begin(), bvh_data.end());
             offset += obj->Vertices.size()/3;
             offset_t += obj->Triangles.size()/4;
@@ -285,10 +317,10 @@ private:
         }
         for (int i = 0; i < triangles_t.size(); i++) triangles.push_back({triangles_t[i]});
         for (int i = 0; i < bvh_nodes_t.size(); i++) bvh_nodes.push_back({bvh_nodes_t[i]});
-        SyncGPUData(vertices, triangles, bvh_nodes);
+        SyncGPUData(vertices, triangles, bvh_nodes, first_bvh_nodes);
     }
 public:
-    Renderer(uint16_t w, uint16_t h) : Window(w, h, "PengInt GUI") {
+    Renderer(uint16_t w, uint16_t h) : Window(w, h, "QED GUI") {
         LoadShaders();
         CLEAR_BACKHROUND = false;
         CameraPosition = {0, 0, -5};
@@ -332,11 +364,14 @@ protected:
             CameraRotation = CombineQuaternions({CameraPitch, 1, 0, 0}, {CameraYaw, 0, 1, 0});
             rlSetUniform(rlGetLocationUniform(RaytraceProgram, "camRot"), &CameraRotation, SHADER_UNIFORM_VEC4, 1);
             rlSetUniform(rlGetLocationUniform(RaytraceProgram, "lightCount"), &totalLightSources, SHADER_UNIFORM_INT, 1);
+            rlSetUniform(rlGetLocationUniform(RaytraceProgram, "fbvhCount"), &totalfBVHs, SHADER_UNIFORM_INT, 1);
             rlBindShaderBuffer(triangleSSBO, 0);
+            rlBindShaderBuffer(BVHSSBO, 1);
             rlBindShaderBuffer(vertexSSBO, 2);
             rlBindShaderBuffer(cBufferSSBO, 3);
             rlBindShaderBuffer(materialSSBO, 4);
             rlBindShaderBuffer(lightSourceSSBO, 5);
+            rlBindShaderBuffer(fBVHSSBO, 6);
             rlComputeShaderDispatch((sw+15)/16, (sh+15)/16, 1);
         rlDisableShader();
         glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
@@ -350,20 +385,16 @@ protected:
     }
 };
 
-std::vector<PengIntShaderStructs::BVH_Node_t> LoadBVHFromJSON(const char* fpath) {
+std::vector<ShaderStructs::BVH_Node_t> LoadBVHFromJSON(const char* fpath) {
     return {};
 }
-std::vector<PengIntShaderStructs::BVH_Node_t> GenerateBVH(const char* fpath) {
+std::vector<ShaderStructs::BVH_Node_t> GenerateBVH(const char* fpath) {
     return {};
 }
 void SaveBVHToJSON(const char* fpath) {
-    
+
 }
-PengIntShaderStructs::Object* LoadObjectFromJSON(const char* fpath, const char* bvhpath) {
-    std::vector<PengIntShaderStructs::BVH_Node_t> bvh_tree;
-    if (std::filesystem::exists(bvhpath) && bvhpath != "") {
-        __UIL::Debug("This is not a drill");
-    } else bvh_tree = LoadBVHFromJSON(bvhpath);
+ShaderStructs::Object* LoadObjectFromJSON(const char* fpath) {
     FILE* fp = fopen(fpath, "rb");
     if (!fp) printf("no file");
     char readbuffer[65536];
@@ -393,9 +424,19 @@ PengIntShaderStructs::Object* LoadObjectFromJSON(const char* fpath, const char* 
             }
         }
     }
-    return new PengIntShaderStructs::Object(0, 0, 0, temp_v, temp_t, std::string(fpath));
+    std::vector<float> temp_bvh;
+    if (doc.HasMember("bvh") && doc["bvh"].IsArray()) {
+        const auto& arr = doc["bvh"].GetArray();
+        temp_bvh.reserve(arr.Size());
+        for (auto& bvh : arr) {
+            if (bvh.IsFloat()) {
+                temp_bvh.push_back(bvh.GetFloat());
+            }
+        }
+    }
+    return new ShaderStructs::Object(0, 0, 0, temp_v, temp_t, temp_bvh, std::string(fpath));
 }
-PengIntShaderStructs::Material LoadMaterialFromJSON_np(const char* fpath) {
+ShaderStructs::Material LoadMaterialFromJSON_np(const char* fpath) {
     FILE* fp = fopen(fpath, "rb");
     if (!fp) printf("no file");
     char readbuffer[65536];
@@ -417,12 +458,12 @@ PengIntShaderStructs::Material LoadMaterialFromJSON_np(const char* fpath) {
     }
     return {temp_d[0], temp_d[1], temp_d[2], temp_d[3], (int) temp_d[4], (int) temp_d[5], (int) temp_d[6], (int) temp_d[7]};
 }
-PengIntShaderStructs::Material* LoadMaterialFromJSON(const char* fpath) {
-    PengIntShaderStructs::Material* mat = new PengIntShaderStructs::Material(LoadMaterialFromJSON_np(fpath));
-    PengIntShaderStructs::MATERIALS.push_back(mat);
+ShaderStructs::Material* LoadMaterialFromJSON(const char* fpath) {
+    ShaderStructs::Material* mat = new ShaderStructs::Material(LoadMaterialFromJSON_np(fpath));
+    ShaderStructs::MATERIALS.push_back(mat);
     return mat;
 }
-PengIntShaderStructs::LightSource LoadLightSourceFromJSON_np(const char* fpath) {
+ShaderStructs::LightSource LoadLightSourceFromJSON_np(const char* fpath) {
     FILE* fp = fopen(fpath, "rb");
     if (!fp) printf("no file");
     char readbuffer[65536];
@@ -444,11 +485,11 @@ PengIntShaderStructs::LightSource LoadLightSourceFromJSON_np(const char* fpath) 
     }
     return {temp_d[0], temp_d[1], temp_d[2], 0, (int) temp_d[3], (int) temp_d[4], (int) temp_d[5], (int) temp_d[6]};
 }
-PengIntShaderStructs::LightSource* LoadLightSourceFromJSON(const char* fpath) {
-    PengIntShaderStructs::LightSource* ls = new PengIntShaderStructs::LightSource(LoadLightSourceFromJSON_np(fpath));
-    PengIntShaderStructs::LIGHTSOURCES.push_back(ls);
+ShaderStructs::LightSource* LoadLightSourceFromJSON(const char* fpath) {
+    ShaderStructs::LightSource* ls = new ShaderStructs::LightSource(LoadLightSourceFromJSON_np(fpath));
+    ShaderStructs::LIGHTSOURCES.push_back(ls);
     return ls;
 }
 
 
-#endif //PENGINT_R_GUIL_HPP
+#endif //QED_R_GUIL_HPP

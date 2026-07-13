@@ -1,5 +1,5 @@
-#ifndef PENGINT_FILLIP_HPP
-#define PENGINT_FILLIP_HPP
+#ifndef QED_FILLIP_HPP
+#define QED_FILLIP_HPP
 
 
 #include <chrono>
@@ -9,7 +9,7 @@
 #include <memory>
 #include <fstream>
 
-#include "PengInt_R-GUIL.hpp"
+#include "QED_R-GUIL.hpp"
 
 
 class ObjectTransform {
@@ -19,13 +19,6 @@ public:
     ObjectTransform() : Rotation({0,0,0,0}), Position({0,0,0}) {}
 };
 
-typedef PengIntShaderStructs::Object ReferenceObject;
-class MeshObject {
-    ReferenceObject* RefMesh;
-    ObjectTransform ObjTransform;
-public:
-    MeshObject(ReferenceObject* refobj) : RefMesh(refobj), ObjTransform(ObjectTransform()) { }
-};
 
 namespace {
     int __debug_count = 0;
@@ -99,7 +92,7 @@ namespace {
         try {
             if (std::filesystem::exists(mod_dir) && std::filesystem::is_directory(mod_dir)) {
                 for (const auto& entry : std::filesystem::directory_iterator(mod_dir)) {
-                    if (std::filesystem::is_regular_file(entry) && entry.path().extension() == f_ext) LoadObjectFromJSON(entry.path().string().c_str(), "");
+                    if (std::filesystem::is_regular_file(entry) && entry.path().extension() == f_ext) LoadObjectFromJSON(entry.path().string().c_str());
                 }
             } else std::cerr << "Specified path does not exist or isn't a directory: " << mod_dir.string() << std::endl;
         } catch (const std::filesystem::filesystem_error& e) {
@@ -194,7 +187,7 @@ namespace {
         #endif
         Debug("Config (CMake) for: " + proj_dir);
         #if defined(_WIN32)
-            std::string cfg_cmd = cmake_exe + " -S \"" + proj_dir + "\" -B \"" + build_dir + "\"\"";
+            std::string cfg_cmd = cmake_exe + " -S \"" + proj_dir + "\" -B \"" + build_dir + "\"";
         #elif defined(__linux__)
             std::string cfg_cmd = cmake_exe + " -DCMAKE_BUILD_TYPE=Release -S \"" + CurrentProject_fp.string() + "\" -B \"" + build_dir + "\"";
         #endif
@@ -205,7 +198,7 @@ namespace {
         }
         Debug("Config (CMake) successful! \nStarting compilation.");
         #if defined(_WIN32)
-            std::string build_cmd = cmake_exe + " --build \"" + build_dir + "\" --config Release\"";
+            std::string build_cmd = cmake_exe + " --build \"" + build_dir + "\" --config Release";
         #elif defined(__linux__)
             std::string build_cmd = cmake_exe + " --build \"" + build_dir + "\"";
         #endif
@@ -274,7 +267,7 @@ class FillipGameEngineWindow : public Renderer {
         if (WindowShouldClose()) return;
         CLEAR_BACKHROUND = true;
         RESET_UI();
-        PengIntShaderStructs::DESTROY_EVERYTHING();
+        ShaderStructs::DESTROY_EVERYTHING();
         UIElementArray* LoadProjects = new UIElementArray(true, 5);
         std::filesystem::path proj_dir = std::filesystem::current_path() / "Projects";
         try {
@@ -321,7 +314,7 @@ class FillipGameEngineWindow : public Renderer {
         });
         TopBar_File_OnClickArray = new UIElementArray(true, 0, {
             new UITextButton({0, 20, 165, 20}, {255, 255, 255, 255}, 15, {0, 0, 0, 255}, "Reload Project", {255, 0, 0, 255}, true, [](UIElement* thisbtn) {
-                PengIntShaderStructs::DESTROY_EVERYTHING();
+                ShaderStructs::DESTROY_EVERYTHING();
                 LOAD_EVERYTHING();
                 return false;
             }, {}, "Reload Project Button (File Menu, Top Bar)"),
@@ -335,9 +328,9 @@ class FillipGameEngineWindow : public Renderer {
                 Compile();
                 std::filesystem::path ProjectAbsPath = std::filesystem::current_path() / std::any_cast<std::filesystem::path>(thisbtn->SpecialMap["CurrentProject_fp"]);
                 #if defined(_WIN32)
-                    std::string command = "cmd /c \"cd /d \"\"" + (ProjectAbsPath/"Compiled Projects" / "Release").string() + "\" && \"" + (ProjectAbsPath/"Compiled Projects" / "Release" / "UserProject.exe").string() + "\"\"";
+                    std::string command = "cmd /c start \"\" cmd /c \"cd /d \"" + (ProjectAbsPath / "Compiled Projects" / "Release").string() + "\" && \"" + (ProjectAbsPath / "Compiled Projects" / "Release" / "UserProject.exe").string() + "\"\"";
                 #elif defined(__linux__)
-                    std::string command = "cd \"" + (ProjectAbsPath/"Compiled Projects" / "Release").string() + "\" && ./UserProject";
+                    std::string command = "cd \"" + (ProjectAbsPath/"Compiled Projects" / "Release").string() + "\" && ./UserProject &";
                 #endif
                 int run_result = std::system(command.c_str());
                 if (run_result == 0) std::cout << "Execution Successful!" << std::endl;
@@ -385,7 +378,7 @@ class FillipGameEngineWindow : public Renderer {
             BeginDrawing();
             ClearBackground(BLACK);
             DrawTextureEx(FillipLogo_WT, {208, 183}, 0, 6, WHITE);
-            DrawTextEx(Roboto_Mono, "A culmination of the Penguin Interactive Visual Libraries", {10, 760}, 30, 0, WHITE);
+            DrawTextEx(Roboto_Mono, "A culmination of the QED Visual Libraries", {10, 760}, 30, 0, WHITE);
             EndDrawing();
         }
         seconds_left = 1;
@@ -395,7 +388,7 @@ class FillipGameEngineWindow : public Renderer {
             BeginDrawing();
             ClearBackground(BLACK);
             DrawTextureEx(FillipLogo_WT, {208, 183}, 0, 6, {255, 255, 255, (unsigned char) (255*seconds_left)});
-            DrawTextEx(Roboto_Mono, "A culmination of the Penguin Interactive Visual Libraries", {10, 760}, 30, 0, {255, 255, 255, (unsigned char) (255*seconds_left)});
+            DrawTextEx(Roboto_Mono, "A culmination of the QED Visual Libraries", {10, 760}, 30, 0, {255, 255, 255, (unsigned char) (255*seconds_left)});
             EndDrawing();
         }
         Fillip_OnRun();
@@ -457,10 +450,10 @@ class FillipGameEngineWindow : public Renderer {
     }
     void OnEnd() override {
         if (EXIT_TO_MENU && !WindowShouldClose()) LoadProjectMenu();
-        else { RESET_UI(); PengIntShaderStructs::DESTROY_EVERYTHING(); }
+        else { RESET_UI(); ShaderStructs::DESTROY_EVERYTHING(); }
     }
 public:
-    FillipGameEngineWindow() : Renderer(400, 300, "Fillip Game Engine") {
+    FillipGameEngineWindow() : Renderer(800, 800, "Fillip Game Engine") {
         FillipSetup();
     }
     FillipGameEngineWindow(std::string GameName) : Renderer(800, 800, GameName) {
@@ -468,4 +461,4 @@ public:
     }
 };
 
-#endif //PENGINT_FILLIP_HPP
+#endif //QED_FILLIP_HPP

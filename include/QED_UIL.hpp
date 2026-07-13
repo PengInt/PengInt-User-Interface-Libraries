@@ -1,5 +1,5 @@
-#ifndef PENGINT_UIL_HPP
-#define PENGINT_UIL_HPP
+#ifndef QED_UIL_HPP
+#define QED_UIL_HPP
 
 #include <cstdint>
 #include <vector>
@@ -289,7 +289,7 @@ public:
     Vector2 VCURSOR_POS = {0, 0};
     Window(uint16_t w, uint16_t h) : WIDTH(w), HEIGHT(h) {
         SetConfigFlags(FLAG_WINDOW_RESIZABLE);
-        InitWindow(WIDTH, HEIGHT, "PengInt UI");
+        InitWindow(WIDTH, HEIGHT, "QED UI");
         Roboto_Mono = LoadFont("Roboto_Mono/RobotoMono-VariableFont_wght.ttf");
         SetTextureFilter(Roboto_Mono.texture, TEXTURE_FILTER_BILINEAR);
         SetExitKey(0);
@@ -400,4 +400,4 @@ public:
     }
 };
 
-#endif //PENGINT_UIL_HPP
+#endif //QED_UIL_HPP

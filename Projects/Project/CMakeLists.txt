@@ -31,9 +31,11 @@ if (NOT rapidjson_POPULATED)
     target_include_directories(${PROJECT_NAME} PRIVATE "${rapidjson_SOURCE_DIR}/include")
 endif()
 
-set_target_properties(UserProject PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/Release"
-)
+if (NOT WIN32)
+    set_target_properties(UserProject PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/Release"
+    )
+endif()
 
 if (WIN32)
     target_link_libraries(UserProject
