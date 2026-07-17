@@ -14,3 +14,4 @@ pyproject.toml
 .pythonlibs
 .upm
 compile_commands.json
+compilerpath.txt

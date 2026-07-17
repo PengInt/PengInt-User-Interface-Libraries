@@ -41,7 +41,8 @@ layout(std430, binding = 2) buffer RotatedVertexInput { Vertex vData[]; };
 layout(std430, binding = 3) buffer ColourBuffer { uint colourValues[]; } outColour;
 layout(std430, binding = 4) buffer MaterialInput { Material mdata[]; };
 layout(std430, binding = 5) buffer LightSourceInput { LightSource lsdata[]; };
-layout(std430, binding = 6) buffer FirstBVHNodeInput { uint fbvhdata[]; };
+layout(std430, binding = 6) buffer FirstBVHNodeInput { uint fbvhData[]; };
+layout(std430, binding = 7) buffer FirstVertexInput { uint fvData[]; };
 
 vec4 hamilton(vec4 a, vec4 b) {
     return vec4(
@@ -60,7 +61,11 @@ vec3 rotate(float w, vec3 v, vec3 P) {
     vec4 Uqc = vec4(-Uq.xyz, Uq.w);
 
     vec4 N = hamilton(hamilton(Uq, QP), Uqc);
-    return N.xyz;
+    return normalize(N.xyz);
+}
+
+vec3 rOffset(vec4 q, vec3 p, vec3 r) {
+    return rotate(q.w, q.xyz, p - r) + r;
 }
 
 struct RayHit {
@@ -81,21 +86,90 @@ vec3 f(vec3 origin, vec3 direction, float d) {
 
 RayHit GetClosestRayHit(vec3 origin, vec3 direction, int skip) {
     RayHit closestHit = RayHit(-1, -1, vec3(0, 0, 0));
-    for (int i = 0; i < triangleCount; i++) {
-        if (i == skip) continue;
-        Triangle tri = data[i];
-        vec3 a = vec3(vData[tri.i1].px+vData[tri.i1].cx, vData[tri.i1].py+vData[tri.i1].cy, vData[tri.i1].pz+vData[tri.i1].cz);
-        vec3 b = vec3(vData[tri.i2].px+vData[tri.i2].cx, vData[tri.i2].py+vData[tri.i2].cy, vData[tri.i2].pz+vData[tri.i2].cz);
-        vec3 c = vec3(vData[tri.i3].px+vData[tri.i3].cx, vData[tri.i3].py+vData[tri.i3].cy, vData[tri.i3].pz+vData[tri.i3].cz);
-        vec3 normal = normalize(cross(b-a, c-a));
-        float A = normal.x;
-        float B = normal.y;
-        float C = normal.z;
-        float D = A*a.x + B*a.y + C*a.z;
-        float d = -(A*origin.x + B*origin.y + C*origin.z - D)/(A*direction.x + B*direction.y + C*direction.z);
-        vec3 p = f(origin, direction, d);
-        if (Hit(a, b, c, normal, p) && (d < closestHit.d || closestHit.tri_i == -1) && d >= 0) {
-            closestHit = RayHit(i, d, p);
+    for (int obj = 0; obj < fbvhCount; obj++) {
+        Vertex rel = vData[fvData[obj]];
+        vec3 rot_origin = rOffset(vec4(rel.x, rel.y, rel.z, rel.w), origin, vec3(rel.cx, rel.cy, rel.cz));
+        vec3 rot_direction = rotate(rel.w, vec3(rel.x, rel.y, rel.z), direction);
+        uint f_layer[128];
+        uint fl_size = 0;
+        uint bvh_branches[9];
+        bvh_branches[0] = fbvhData[obj];
+        int index = 0;
+        while (index != -1) {
+            BVH_Node c_node = bvhData[bvh_branches[index]];
+
+            bool hit = false;
+            vec3 p0 = vec3(c_node.x0, c_node.y0, c_node.z0);
+            vec3 p1 = vec3(c_node.x1, c_node.y1, c_node.z1);
+            if (rot_direction.x != 0) {
+                float di1 = (p0.x - rot_origin.x)/rot_direction.x;
+                float y1 = rot_direction.y*di1 + rot_origin.y;
+                float z1 = rot_direction.z*di1 + rot_origin.z;
+                if (di1 > 0 && p1.y >= y1 && y1 >= p0.y && p1.z >= z1 && z1 >= p0.z) hit = true;
+                if (!hit) {
+                    float di2 = (p1.x - rot_origin.x)/rot_direction.x;
+                    float y2 = rot_direction.y*di2 + rot_origin.y;
+                    float z2 = rot_direction.z*di2 + rot_origin.z;
+                    if (di2 > 0 && p1.y >= y2 && y2 >= p0.y && p1.z >= z2 && z2 >= p0.z) hit = true;
+                }
+            }
+            if (!hit && rot_direction.y != 0) {
+                float di1 = (p0.y - rot_origin.y)/rot_direction.y;
+                float x1 = rot_direction.x*di1 + rot_origin.x;
+                float z1 = rot_direction.z*di1 + rot_origin.z;
+                if (di1 > 0 && p1.x >= x1 && x1 >= p0.x && p1.z >= z1 && z1 >= p0.z) hit = true;
+                if (!hit) {
+                    float di2 = (p1.y - rot_origin.y)/rot_direction.y;
+                    float x2 = rot_direction.x*di2 + rot_origin.x;
+                    float z2 = rot_direction.z*di2 + rot_origin.z;
+                    if (di2 > 0 && p1.x >= x2 && x2 >= p0.x && p1.z >= z2 && z2 >= p0.z) hit = true;
+                }
+            }
+            if (!hit && rot_direction.z != 0) {
+                float di1 = (p0.z - rot_origin.z)/rot_direction.z;
+                float x1 = rot_direction.x*di1 + rot_origin.x;
+                float y1 = rot_direction.y*di1 + rot_origin.y;
+                if (di1 > 0 && p1.x >= x1 && x1 >= p0.x && p1.y >= y1 && y1 >= p0.y) hit = true;
+                if (!hit) {
+                    float di2 = (p1.z - rot_origin.z)/rot_direction.z;
+                    float x2 = rot_direction.x*di2 + rot_origin.x;
+                    float y2 = rot_direction.y*di2 + rot_origin.y;
+                    if (di2 > 0 && p1.x >= x2 && x2 >= p0.x && p1.y >= y2 && y2 >= p0.y) hit = true;
+                }
+            }
+
+            if (!hit) { index--; continue; }
+
+            if (c_node.first < 0) {
+                f_layer[fl_size] = bvh_branches[index];
+                fl_size++;
+                index--;
+                continue;
+            }
+            bvh_branches[index] = uint(c_node.first);
+            index++;
+            bvh_branches[index] = uint(c_node.first)+1;
+        }
+
+        for (int t = 0; t < fl_size; t++) {
+            BVH_Node bvh = bvhData[f_layer[t]];
+            for (int i = -int(bvh.first) - 1; i < (-bvh.first - 1) + bvh.count; i++) {
+                if (i == skip) continue;
+                Triangle tri = data[i];
+                vec3 a = vec3(vData[tri.i1].px+vData[tri.i1].cx, vData[tri.i1].py+vData[tri.i1].cy, vData[tri.i1].pz+vData[tri.i1].cz);
+                vec3 b = vec3(vData[tri.i2].px+vData[tri.i2].cx, vData[tri.i2].py+vData[tri.i2].cy, vData[tri.i2].pz+vData[tri.i2].cz);
+                vec3 c = vec3(vData[tri.i3].px+vData[tri.i3].cx, vData[tri.i3].py+vData[tri.i3].cy, vData[tri.i3].pz+vData[tri.i3].cz);
+                vec3 normal = normalize(cross(b-a, c-a));
+                float A = normal.x;
+                float B = normal.y;
+                float C = normal.z;
+                float D = A*a.x + B*a.y + C*a.z;
+                float d = -(A*origin.x + B*origin.y + C*origin.z - D)/(A*direction.x + B*direction.y + C*direction.z);
+                vec3 p = f(origin, direction, d);
+                if (Hit(a, b, c, normal, p) && (d < closestHit.d || closestHit.tri_i == -1) && d >= 0) {
+                    closestHit = RayHit(i, d, p);
+                }
+            }
         }
     }
     return closestHit;

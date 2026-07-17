@@ -405,6 +405,9 @@ class FillipGameEngineWindow : public Renderer {
     virtual void Fillip_OnRun() {}
     virtual void Fillip_OnUpdate(float dt, float t) {}
     void OnUpdate_GUI(float dt, float t) override {
+        for (ShaderStructs::Object* obj : ShaderStructs::OBJECTS) {
+            obj->rotation = CombineQuaternions(obj->rotation, NormaliseQ({dt, 1, 1, 1}));
+        }
         Vector2 MouseM = GetMouseDelta();
         float mvtmult = 1;
         if (IsKeyDown(KEY_LEFT_SHIFT)) mvtmult = 2;

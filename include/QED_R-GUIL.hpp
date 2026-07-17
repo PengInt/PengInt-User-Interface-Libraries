@@ -108,7 +108,7 @@ namespace ShaderStructs {
     struct BVH_Node {
         float count, x0, y0, z0;
         float x1, y1, z1, first;
-        BVH_Node(BVH_Node_t t) { count = t.count; x0 = t.x0; y0 = t.y0; z0 = t.z0; x1 = t.x1; y1 = t.y1; z1 = t.z1; if (t.bvh_ptr != nullptr) first = t.bvh_ptr->index; else first = -t.tri_ptr->index; }
+        BVH_Node(BVH_Node_t t) { count = t.count; x0 = t.x0; y0 = t.y0; z0 = t.z0; x1 = t.x1; y1 = t.y1; z1 = t.z1; if (t.bvh_ptr != nullptr) first = t.bvh_ptr->index; else first = -t.tri_ptr->index-1; }
     };
     struct LightSource {
         float x, y, z, _pad1;
@@ -216,6 +216,7 @@ private:
     unsigned int materialSSBO;
     unsigned int lightSourceSSBO;
     unsigned int fBVHSSBO;
+    unsigned int fvertexSSBO;
     int totalVertices = 0;
     int totalBVHs = 0;
     int totalTriangles = 0;
@@ -242,6 +243,7 @@ private:
         materialSSBO = 0;
         lightSourceSSBO = 0;
         fBVHSSBO = 0;
+        fvertexSSBO = 0;
 
         CameraPosition = {0, 0, 0};
         CameraPitch = 0;
@@ -249,7 +251,7 @@ private:
         CameraRoll = 0;
         CameraRotation = {0, 1, 0, 0};
     }
-    void SyncGPUData(const std::vector<ShaderStructs::Vertex>& vertices, const std::vector<ShaderStructs::Triangle>& triangles, const std::vector<ShaderStructs::BVH_Node>& bvh_nodes, const std::vector<unsigned int>& first_bvh_nodes) {
+    void SyncGPUData(const std::vector<ShaderStructs::Vertex>& vertices, const std::vector<ShaderStructs::Triangle>& triangles, const std::vector<ShaderStructs::BVH_Node>& bvh_nodes, const std::vector<unsigned int>& first_bvh_nodes, const std::vector<unsigned int>& first_vertices) {
         if (vertexSSBO == 0) vertexSSBO = rlLoadShaderBuffer(vertices.size() * sizeof(ShaderStructs::Vertex), vertices.data(), RL_DYNAMIC_COPY);
         else if (totalVertices < vertices.size()) {
             rlUnloadShaderBuffer(vertexSSBO);
@@ -292,6 +294,12 @@ private:
             rlUnloadShaderBuffer(fBVHSSBO);
             fBVHSSBO = rlLoadShaderBuffer(first_bvh_nodes.size() * sizeof(unsigned int), first_bvh_nodes.data(), RL_DYNAMIC_COPY);
         } else rlUpdateShaderBuffer(fBVHSSBO, first_bvh_nodes.data(), first_bvh_nodes.size() * sizeof(unsigned int), 0);
+
+        if (fvertexSSBO == 0) fvertexSSBO = rlLoadShaderBuffer(first_vertices.size() * sizeof(unsigned int), first_vertices.data(), RL_DYNAMIC_COPY);
+        else if (totalfBVHs < first_vertices.size()) {
+            rlUnloadShaderBuffer(fvertexSSBO);
+                fvertexSSBO = rlLoadShaderBuffer(first_vertices.size() * sizeof(unsigned int), first_vertices.data(), RL_DYNAMIC_COPY);
+        } else rlUpdateShaderBuffer(fvertexSSBO, first_vertices.data(), first_vertices.size() * sizeof(unsigned int), 0);
         totalfBVHs = first_bvh_nodes.size();
     }
     void GetDataSync() {
@@ -301,9 +309,11 @@ private:
         std::vector<ShaderStructs::BVH_Node> bvh_nodes;
         std::vector<ShaderStructs::BVH_Node_t> bvh_nodes_t;
         std::vector<unsigned int> first_bvh_nodes;
+        std::vector<unsigned int> first_vertices;
         int offset = 0; int offset_t = 0; int offset_bvh = 0;
         for (int i = 0; i < ShaderStructs::OBJECTS.size(); i++) {
             auto* obj = ShaderStructs::OBJECTS[i];
+            first_vertices.push_back(offset);
             std::vector<ShaderStructs::Vertex> v_data = obj->GetVertexData();
             vertices.insert(vertices.end(), v_data.begin(), v_data.end());
             std::vector<ShaderStructs::Triangle_t> t_data = obj->GetTriangleData(offset, offset_t);
@@ -317,7 +327,7 @@ private:
         }
         for (int i = 0; i < triangles_t.size(); i++) triangles.push_back({triangles_t[i]});
         for (int i = 0; i < bvh_nodes_t.size(); i++) bvh_nodes.push_back({bvh_nodes_t[i]});
-        SyncGPUData(vertices, triangles, bvh_nodes, first_bvh_nodes);
+        SyncGPUData(vertices, triangles, bvh_nodes, first_bvh_nodes, first_vertices);
     }
 public:
     Renderer(uint16_t w, uint16_t h) : Window(w, h, "QED GUI") {
@@ -372,6 +382,7 @@ protected:
             rlBindShaderBuffer(materialSSBO, 4);
             rlBindShaderBuffer(lightSourceSSBO, 5);
             rlBindShaderBuffer(fBVHSSBO, 6);
+            rlBindShaderBuffer(fvertexSSBO, 7);
             rlComputeShaderDispatch((sw+15)/16, (sh+15)/16, 1);
         rlDisableShader();
         glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
