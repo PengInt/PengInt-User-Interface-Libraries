@@ -12,14 +12,6 @@
 #include "QED_R-GUIL.hpp"
 
 
-class ObjectTransform {
-public:
-    std::array<float, 4> Rotation;
-    std::array<float, 3> Position;
-    ObjectTransform() : Rotation({0,0,0,0}), Position({0,0,0}) {}
-};
-
-
 namespace {
     int __debug_count = 0;
     void Debug(const std::string what) { std::cout << "FGE DEBUG [ID " << __debug_count << "]: " << what << std::endl; __debug_count++; }
