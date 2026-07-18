@@ -5,95 +5,46 @@
 #include <algorithm>
 #include <chrono>
 #include <thread>
+#include <string_view>
 
 
-using GlobalPrecision = float;
-using gp = GlobalPrecision;
+using GlobalPrecision = double;
 
-/*
-using N = GlobalPrecision;
-using S = GlobalPrecision;
-using kg_m3 = GlobalPrecision;
-using S_m = GlobalPrecision;
-using W_mK = GlobalPrecision;
 
-using K = GlobalPrecision;
-constexpr K operator"" _C(long double C) { return C+273.15; }
-using C = GlobalPrecision;
-constexpr C operator"" _K(long double K) { return K-273.15; }*/
 
-template<typename T>
-struct Unit {
-	gp Val;
-public:
-	Unit(gp val) : Val(val) { }
+struct PhysicsValue {
+	GlobalPrecision Scalar;
+	int Metre, Second, Kilogramme, Kelvin, Newton;
+	constexpr PhysicsValue(GlobalPrecision scalar, int metre, int second, int kilogramme, int kelvin, int newton) : Scalar(scalar), Metre(metre), Second(second), Kilogramme(kilogramme), Kelvin(kelvin), Newton(newton) { }
 };
 
-struct Meter : Unit<struct MeterTag> {
-	gp Val;
-public:
-	Meter(gp val) : Unit(val) { }
-	operator gp() const { return Val; }
-}; using m = Meter;
-constexpr m operator"" _mm(long double n) { return m(n/1000); }
-constexpr m operator"" _cm(long double n) { return m(n/100); }
-constexpr m operator"" _dm(long double n) { return m(n/10); }
-constexpr m operator"" _m(long double n) { return m(n); }
-constexpr m operator"" _dam(long double n) { return m(n*10); }
-constexpr m operator"" _hm(long double n) { return m(n*100); }
-constexpr m operator"" _km(long double n) { return m(n*1000); }
 
-struct Kilogramme : Unit<struct KilogrammeTag> {
-	gp Val;
-public:
-	Kilogramme(gp val) : Unit(val) { }
-	operator gp() const { return Val; }
-}; using kg = Kilogramme;
-constexpr kg operator"" _mg(long double n) { return kg(n/1000000); }
-constexpr kg operator"" _cg(long double n) { return kg(n/100000); }
-constexpr kg operator"" _dg(long double n) { return kg(n/10000); }
-constexpr kg operator"" _g(long double n) { return kg(n/1000); }
-constexpr kg operator"" _dag(long double n) { return kg(n/100); }
-constexpr kg operator"" _hg(long double n) { return kg(n/10); }
-constexpr kg operator"" _kg(long double n) { return kg(n/1); }
+constexpr PhysicsValue operator"" _mm(const long double n) { return PhysicsValue(n/1'000, 1, 0, 0, 0, 0); }
+constexpr PhysicsValue operator"" _cm(const long double n) { return PhysicsValue(n/100, 1, 0, 0, 0, 0); }
+constexpr PhysicsValue operator"" _m(const long double n) { return PhysicsValue(n, 1, 0, 0, 0, 0); }
+constexpr PhysicsValue operator"" _km(const long double n) { return PhysicsValue(n*1'000, 0, 0, 1, 0, 0); }
+
+constexpr PhysicsValue operator"" _s(const long double n) { return PhysicsValue(n, 0, 1, 0, 0, 0); }
+constexpr PhysicsValue operator"" _sec(const long double n) { return PhysicsValue(n, 0, 1, 0, 0, 0); }
+constexpr PhysicsValue operator"" _min(const long double n) { return PhysicsValue(n/60, 0, 1, 0, 0, 0); }
+constexpr PhysicsValue operator"" _h(const long double n) { return PhysicsValue(n/3'600, 0, 1, 0, 0, 0); }
+constexpr PhysicsValue operator"" _hrs(const long double n) { return PhysicsValue(n/3'600, 0, 1, 0, 0, 0); }
+constexpr PhysicsValue operator"" _d(const long double n) { return PhysicsValue(n/86'400, 0, 1, 0, 0, 0); }
+constexpr PhysicsValue operator"" _dys(const long double n) { return PhysicsValue(n/86'400, 0, 1, 0, 0, 0); }
+
+constexpr PhysicsValue operator"" _mg(const long double n) { return PhysicsValue(n/1'000'000, 0, 0, 1, 0, 0); }
+constexpr PhysicsValue operator"" _g(const long double n) { return PhysicsValue(n/1'000, 0, 0, 1, 0, 0); }
+constexpr PhysicsValue operator"" _kg(const long double n) { return PhysicsValue(n, 0, 0, 1, 0, 0); }
+
+constexpr PhysicsValue operator"" _K(const long double n) { return PhysicsValue(n, 0, 0, 0, 1, 0); }
+constexpr PhysicsValue operator"" _C(const long double n) { return PhysicsValue(n + 273.15, 0, 0, 0, 1, 0); }
+
+constexpr PhysicsValue operator"" _N(const long double n) { return PhysicsValue(n, 0, 0, 0, 0, 1); }
+constexpr PhysicsValue operator"" _kN(const long double n) { return PhysicsValue(n*1'000, 0, 0, 0, 0, 1); }
+constexpr PhysicsValue operator"" _MN(const long double n) { return PhysicsValue(n*1'000'000, 0, 0, 0, 0, 1); }
 
 
-class Kelvin;
 
-struct Celsius : Unit<struct CelsiusTag> {
-	gp Val;
-public:
-	Celsius(gp val) : Unit(val) { }
-	operator Kelvin();
-	operator gp() const { return Val; }
-}; using C = Celsius;
-constexpr C operator"" _C(long double n) { return C(n); }
-constexpr C operator"" _Kc(long double n) { return C(n-273.15); }
-
-struct Kelvin : Unit<struct KelvinTag> {
-	gp Val;
-public:
-	Kelvin(gp val) : Unit(val) { }
-	operator Celsius();
-	operator gp() const { return Val; }
-}; using K = Kelvin;
-constexpr K operator"" _Ck(long double n) { return K(n+273.15); }
-constexpr K operator"" _K(long double n) { return K(n); }
-
-Celsius ConvertTemperature(Kelvin k) { return k-273.15; }
-Kelvin ConvertTemperature(Celsius k) { return k+273.15; }
-
-Celsius::operator Kelvin() { return ConvertTemperature(*this); }
-Kelvin::operator Celsius() { return ConvertTemperature(*this); }
-
-template<typename T, typename U> requires (!std::same_as<T, U>)
-bool operator== (const Unit<T>&, const Unit<U>&) = delete;
-template<typename T, typename U> requires (!std::same_as<T, U>)
-bool operator<=> (const Unit<T>&, const Unit<U>&) = delete;
-template<typename T, typename U> requires (!std::same_as<T, U>)
-bool operator+ (const Unit<T>&, const Unit<U>&) = delete;
-template<typename T, typename U> requires (!std::same_as<T, U>)
-bool operator- (const Unit<T>&, const Unit<U>&) = delete;
 
 namespace FoRCE {
 	struct Vec3 {
@@ -109,14 +60,14 @@ namespace FoRCE {
 		std::vector<Triangle*> Tri;
 	};
 	struct PhysicsMaterial {
-		kg_m3 Density;
+		PhysicsValue Density;
 		float ElectricalConductivity, ThermalConductivity;
 		float Hardness, Toughness, Malleability, Ductility;
 		float YieldStrength;
 	};
 	class Object {
 		bool Server;
-		kg Mass;
+		PhysicsValue Mass;
 	};
 	class PhysicsEngine;
 	std::vector<PhysicsEngine*> PhysicsEngines;
