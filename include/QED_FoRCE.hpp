@@ -16,8 +16,24 @@ struct PhysicsValue {
 	GlobalPrecision Scalar;
 	int Metre, Second, Kilogramme, Kelvin, Newton;
 	constexpr PhysicsValue(GlobalPrecision scalar, int metre, int second, int kilogramme, int kelvin, int newton) : Scalar(scalar), Metre(metre), Second(second), Kilogramme(kilogramme), Kelvin(kelvin), Newton(newton) { }
+	constexpr PhysicsValue(GlobalPrecision scalar) : Scalar(scalar), Metre(0), Second(0), Kilogramme(0), Kelvin(0), Newton(0) { }
 };
-
+PhysicsValue operator+ (const PhysicsValue a, const PhysicsValue b) {
+	if (a.Metre == b.Metre && a.Second == b.Second && a.Kilogramme == b.Kilogramme && a.Kelvin == b.Kelvin && a.Newton == b.Newton) return PhysicsValue(a.Scalar + b.Scalar, a.Metre, a.Second, a.Kilogramme, a.Kelvin, a.Newton);
+	else throw std::logic_error("PhysicsValue Error: Unit type in addition doesn't match up.");
+}
+PhysicsValue operator- (const PhysicsValue a) {
+	return PhysicsValue(-a.Scalar, a.Metre, a.Second, a.Kilogramme, a.Kelvin, a.Newton);
+}
+PhysicsValue operator- (const PhysicsValue a, const PhysicsValue b) {
+	return a + (-b);
+}
+PhysicsValue operator* (const PhysicsValue a, const PhysicsValue b) {
+	return PhysicsValue(a.Scalar*b.Scalar, a.Metre + b.Metre, a.Second + b.Second, a.Kilogramme + b.Kilogramme, a.Kelvin + b.Kelvin, a.Newton + b.Newton);
+}
+PhysicsValue operator/ (const PhysicsValue a, const PhysicsValue b) {
+	return PhysicsValue(a.Scalar/b.Scalar, a.Metre - b.Metre, a.Second - b.Second, a.Kilogramme - b.Kilogramme, a.Kelvin - b.Kelvin, a.Newton - b.Newton);
+}
 
 constexpr PhysicsValue operator"" _mm(const long double n) { return PhysicsValue(n/1'000, 1, 0, 0, 0, 0); }
 constexpr PhysicsValue operator"" _cm(const long double n) { return PhysicsValue(n/100, 1, 0, 0, 0, 0); }
