@@ -25,10 +25,10 @@ FetchContent_Declare(
 )
 
 add_executable(QED_GraphicsLibraries main.cpp
-        include/QED_R-GUIL.hpp
-        include/QED_UIL.hpp
-        include/QED_FGE.hpp
-        include/FGE_SourceCodeHandler.hpp
+    include/QED_R-GUIL.hpp
+    include/QED_UIL.hpp
+    include/QED_FGE.hpp
+    include/FGE_SourceCodeHandler.hpp
 )
 
 if (NOT rapidjson_POPULATED)
@@ -56,3 +56,7 @@ else()
         dl
     )
 endif()
+
+add_executable(QED_FoRCE_Server server.cpp
+    include/QED_FoRCE.hpp
+)
