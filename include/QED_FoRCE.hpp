@@ -181,12 +181,21 @@ namespace FoRCE {
 		PhysicsValue Value;
 	};
 
+	GlobalPrecision operator~ (PhysicsVector a) {
+		return a.Value.Scalar;
+	}
 	bool operator== (const PhysicsVector a, const PhysicsVector b) {
 		return a.Value == b.Value;
 	}
 	PhysicsVector operator+ (const PhysicsVector a, const PhysicsVector b) {
 		if (a == b) return PhysicsVector((a.Centre + b.Centre)/2, a.Vector + b.Vector, a.Value);
 		throw std::logic_error("PhysicsVector Error: Unit type in addition doesn't match up.");
+	}
+	PhysicsVector operator+ (const PhysicsVector a) {
+		return PhysicsVector(a.Centre, -a.Vector, a.Value);
+	}
+	PhysicsVector operator! (PhysicsVector a) {
+		return PhysicsVector(a.Centre, !a.Vector, a.Value*~a.Vector);
 	}
 
 
@@ -195,9 +204,12 @@ namespace FoRCE {
 	};
 	struct BVH_Node {
 		Vector3 v0, v1;
-		bool isLeaf;
 		std::vector<BVH_Node*> BVH;
 		std::vector<Triangle*> Tri;
+		~BVH_Node() {
+			for (BVH_Node* bvh : BVH) delete bvh;
+			for (Triangle* tri : Tri) delete tri;
+		}
 	};
 	struct PhysicsMaterial {
 		PhysicsValue Density;
@@ -206,8 +218,15 @@ namespace FoRCE {
 		float YieldStrength;
 	};
 	class Object {
-		bool Server;
+		bool ServerManaged;
 		PhysicsValue Mass;
+		Vector3 CentreOfMass;
+		std::vector<Vector3> Vertices;
+		BVH_Node* FirstBVH;
+		std::vector<PhysicsVector> Forces;
+		~Object() {
+			delete FirstBVH;
+		}
 	};
 	class PhysicsEngine;
 	std::vector<PhysicsEngine*> PhysicsEngines;
