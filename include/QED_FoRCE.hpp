@@ -218,6 +218,7 @@ namespace FoRCE {
 		float YieldStrength;
 	};
 	class Object {
+	public:
 		bool ServerManaged;
 		PhysicsValue Mass;
 		Vector3 CentreOfMass;
@@ -226,6 +227,9 @@ namespace FoRCE {
 		std::vector<PhysicsVector> Forces;
 		~Object() {
 			delete FirstBVH;
+		}
+		void AddPhysicsVector(PhysicsVector pv) {
+			for (int i = 0; i < Forces.size(); i++) if (Forces[i] == pv) { Forces[i] = Forces[i] + pv; return; }
 		}
 	};
 	class PhysicsEngine;
@@ -238,7 +242,10 @@ namespace FoRCE {
 		}
 		Object* push_back(Object* obj) { Objects.push_back(obj); return obj; }
 		void Tick(float dt, float t) {
-			
+			for (Object* obj : Objects) {
+				for (PhysicsVector pv : obj->Forces) if (pv.Value == 1.0_m/1.0_s) obj->CentreOfMass = obj->CentreOfMass + pv.Vector * ~pv;
+				obj->AddPhysicsVector(PhysicsVector(obj->CentreOfMass, Vector3(0, -1, 0), dt*9.8_m/1.0_s));
+			}
 		}
 	};
 	void DestroyObject(Object*& obj) {
